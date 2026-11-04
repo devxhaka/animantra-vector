@@ -1,0 +1,17 @@
+{
+  "id": "kakak",
+  "nama": "Kak Aisyah",
+  "peran": "Kakak sulung, 15 tahun. Tenang, sabar, suka menjelaskan dengan lembut, hafal 10 ayat awal Al-Kahfi.",
+  "jenis": "perempuan",
+  "usia": "remaja",
+  "pakaian": "hijab-gamis",
+  "warna": {
+    "kulit": "#ebbf98",
+    "rambut": "#1f1a17",
+    "atasan": "#3f6e8c",
+    "bawahan": "#2c4a5e",
+    "penutup": "#e9e2d4",
+    "sepatu": "#3a2c25"
+  },
+  "suara": "azure:id-ID-GadisNeural"
+}

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <!-- langit malam -->
+  <rect width="1080" height="1920" fill="#2b3a5c"/>
+  <rect y="0" width="1080" height="420" fill="#1f2b47"/>
+  <circle cx="830" cy="230" r="70" fill="#f3ecd2" stroke="#1d1d1f" stroke-width="6"/>
+  <circle cx="805" cy="210" r="14" fill="#ddd3b2"/><circle cx="850" cy="255" r="9" fill="#ddd3b2"/>
+  <g fill="#f3ecd2"><circle cx="160" cy="150" r="5"/><circle cx="420" cy="90" r="4"/><circle cx="600" cy="260" r="4"/><circle cx="980" cy="420" r="5"/><circle cx="300" cy="330" r="3"/></g>
+  <!-- siluet atap rumah tetangga -->
+  <path d="M0 760 L160 640 L320 760 L420 700 L560 760 L700 620 L860 760 L1080 690 V900 H0 Z" fill="#16203a" stroke="#1d1d1f" stroke-width="6" stroke-linejoin="round"/>
+  <g stroke="#1d1d1f" stroke-width="7" stroke-linejoin="round">
+    <!-- dinding rumah -->
+    <rect x="-10" y="860" width="1100" height="720" fill="#c9b59a"/>
+    <rect x="-10" y="860" width="1100" height="60" fill="#a8927a"/>
+    <rect x="-10" y="1360" width="1100" height="40" fill="#b09c83" stroke="none"/>
+    <!-- jendela bercahaya -->
+    <rect x="90" y="1000" width="300" height="300" rx="10" fill="#f2c86b"/>
+    <path d="M240 1000 V1300 M90 1150 H390" stroke-width="10"/>
+    <rect x="100" y="1010" width="130" height="20" fill="#f8de9c" stroke="none"/>
+    <!-- pintu -->
+    <rect x="640" y="960" width="260" height="440" rx="12" fill="#6b4a33"/>
+    <rect x="660" y="980" width="100" height="400" rx="8" fill="#7d5a40" stroke="none"/>
+    <circle cx="870" cy="1190" r="12" fill="#e8c25a"/>
+    <!-- lampu teras -->
+    <path d="M520 860 V930" stroke-width="6"/>
+    <path d="M490 930 h60 l-10 40 h-40 z" fill="#f6d77d"/>
+    <!-- lantai teras -->
+    <rect x="-10" y="1400" width="1100" height="530" fill="#8f7a66"/>
+    <path d="M-10 1400 H1090" stroke-width="10"/>
+    <g stroke="#7a6655" stroke-width="5"><path d="M0 1520 H1080 M0 1660 H1080 M0 1800 H1080"/><path d="M180 1400 L120 1920 M540 1400 V1920 M900 1400 L960 1920"/></g>
+  </g>
+  <!-- cahaya lampu -->
+  <ellipse cx="520" cy="1000" rx="380" ry="240" fill="#ffe7a6" opacity="0.12"/>
+</svg>

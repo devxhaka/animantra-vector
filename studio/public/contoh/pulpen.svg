@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260">
+  <!-- bayangan lembut -->
+  <ellipse cx="520" cy="228" rx="430" ry="22" fill="#000" opacity="0.10"/>
+  <g stroke="#1d1d1f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <!-- ujung logam -->
+    <path d="M60 130 L150 96 L150 164 Z" fill="#b9bcc4"/>
+    <path d="M60 130 L150 130 L150 164 Z" fill="#8f939c" stroke="none"/>
+    <path d="M60 130 L150 96 L150 164 Z" fill="none"/>
+    <!-- grip -->
+    <rect x="150" y="82" width="110" height="96" rx="14" fill="#2b2b30"/>
+    <path d="M170 82v96M196 82v96M222 82v96M248 82v96" stroke="#4a4a52" stroke-width="6"/>
+    <!-- badan -->
+    <rect x="258" y="72" width="520" height="116" rx="22" fill="#b52f2f"/>
+    <rect x="270" y="150" width="496" height="30" rx="12" fill="#8d2121" stroke="none"/>
+    <rect x="290" y="86" width="460" height="16" rx="8" fill="#e46a5c" stroke="none"/>
+    <rect x="258" y="72" width="520" height="116" rx="22" fill="none"/>
+    <!-- jendela isi -->
+    <rect x="330" y="104" width="380" height="52" rx="18" fill="#3c3f47"/>
+    <rect x="344" y="116" width="352" height="28" rx="12" fill="#3f78e0"/>
+    <path d="M352 120h330" stroke="#8fb4ff" stroke-width="6"/>
+    <!-- cincin & tombol -->
+    <rect x="776" y="78" width="62" height="104" rx="12" fill="#f2b632"/>
+    <rect x="782" y="148" width="50" height="26" rx="8" fill="#cc8f12" stroke="none"/>
+    <rect x="776" y="78" width="62" height="104" rx="12" fill="none"/>
+    <rect x="836" y="66" width="104" height="128" rx="28" fill="#f4ecd6"/>
+    <rect x="848" y="150" width="84" height="34" rx="14" fill="#ddd2b4" stroke="none"/>
+    <rect x="836" y="66" width="104" height="128" rx="28" fill="none"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "id": "adik",
+  "nama": "Raka",
+  "peran": "Adik laki-laki, 8 tahun. Polos, banyak bertanya, mudah cemas tapi berani.",
+  "jenis": "laki",
+  "usia": "anak",
+  "pakaian": "koko-kopiah",
+  "warna": {
+    "kulit": "#dca57c",
+    "rambut": "#1f1a17",
+    "atasan": "#f2efe6",
+    "bawahan": "#5b6b73",
+    "penutup": "#2b2b30",
+    "sepatu": "#4a3b30"
+  },
+  "suara": "azure:id-ID-ArdiNeural"
+}

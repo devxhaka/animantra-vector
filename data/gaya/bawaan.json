@@ -1,0 +1,24 @@
+{
+  "id": "bawaan",
+  "nama": "Bawaan",
+  "seri": "",
+  "warna": {
+    "latar": "#e9e6df",
+    "lantai": "#d9d3c7",
+    "teks": "#151515",
+    "merek": "#a3243b",
+    "sorot": "#e8c25a",
+    "teksSorot": "#111111",
+    "label": "#1c1c1e",
+    "teksLabel": "#ffffff"
+  },
+  "gelap": false,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 10,
+    "label": "pil",
+    "outline": 4,
+    "bayangan": true
+  },
+  "logo": null
+}
