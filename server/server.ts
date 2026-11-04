@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { DIR, PORT, ROOT, URL_STUDIO } from './jalur';
+import { DIR, HOST, MODE_PRATINJAU, PORT, ROOT, URL_STUDIO } from './jalur';
 import * as S from './store';
 import { FORMATS, SUARA } from '../shared/formats';
 import type { FormBaru, Gaya, Job } from '../shared/tipe';
@@ -377,7 +377,7 @@ export async function mulaiServer(opsi: { buka: boolean }) {
     plugins: [react()],
     appType: 'spa',
     logLevel: 'warn',
-    server: { middlewareMode: true, fs: { allow: [ROOT] } },
+    server: { middlewareMode: true, fs: { allow: [ROOT] }, ...(MODE_PRATINJAU ? { allowedHosts: true as const } : {}) },
     optimizeDeps: { include: ['react', 'react-dom', 'remotion', '@remotion/player'] },
   });
   app.use(vite.middlewares);
@@ -392,7 +392,7 @@ export async function mulaiServer(opsi: { buka: boolean }) {
   }
 
   await new Promise<void>((r, gagal) => {
-    const srv = app.listen(PORT, '127.0.0.1', () => r());
+    const srv = app.listen(PORT, HOST, () => r());
     srv.on('error', gagal);
   });
   console.log(`Animantra Studio jalan di ${URL_STUDIO}`);

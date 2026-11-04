@@ -18,6 +18,9 @@ export const DIR = {
 for (const d of [DIR.data, DIR.jobs, DIR.gaya, DIR.karakter, DIR.videos, DIR.musik, DIR.sfx]) fs.mkdirSync(d, { recursive: true });
 
 export const PORT = Number(process.env.STUDIO_PORT || 4321);
+/** STUDIO_PRATINJAU=1 → izinkan akses lewat panel pratinjau/proxy (dipakai di sesi cloud). Lokal: biarkan kosong. */
+export const MODE_PRATINJAU = process.env.STUDIO_PRATINJAU === '1';
+export const HOST = MODE_PRATINJAU ? '0.0.0.0' : '127.0.0.1';
 export const URL_STUDIO = `http://127.0.0.1:${PORT}`;
 
 export function bacaJson<T>(file: string, cadangan: T): T {
