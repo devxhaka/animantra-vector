@@ -71,6 +71,16 @@ Buat file `.claude/settings.json` di folder ini:
 { "permissions": { "allow": ["Bash(node studio.mjs:*)", "Bash(npm install)", "WebSearch"] } }
 ```
 
+## Menjalankan di sesi cloud Claude Code
+
+Buka sesi Claude Code (web) dengan repo ini, lalu ketik **buka studio**. CLI mengenali sesi cloud
+otomatis: server menerima akses dari **panel pratinjau** app Claude dan render memakai Chromium
+bawaan container. Studio dibuka lewat panel pratinjau, bukan `127.0.0.1`.
+- API key suara ditambahkan di pengaturan lingkungan cloud → **Variabel lingkungan**
+  (`AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, dst.), dan domain layanannya di **Akses jaringan**.
+  Berlaku di sesi baru.
+- Container bersifat sementara: unduh video yang ingin disimpan sebelum sesi berakhir.
+
 ## Struktur
 
 ```

@@ -18,8 +18,13 @@ export const DIR = {
 for (const d of [DIR.data, DIR.jobs, DIR.gaya, DIR.karakter, DIR.videos, DIR.musik, DIR.sfx]) fs.mkdirSync(d, { recursive: true });
 
 export const PORT = Number(process.env.STUDIO_PORT || 4321);
-/** STUDIO_PRATINJAU=1 → izinkan akses lewat panel pratinjau/proxy (dipakai di sesi cloud). Lokal: biarkan kosong. */
-export const MODE_PRATINJAU = process.env.STUDIO_PRATINJAU === '1';
+/** Berjalan di sesi cloud Claude Code (bukan komputer pengguna)? */
+export const DI_CLOUD = !!process.env.CLAUDE_CODE_REMOTE && process.env.CLAUDE_CODE_REMOTE !== 'false';
+/**
+ * Mode pratinjau: server menerima akses lewat panel pratinjau/proxy. Otomatis aktif di cloud;
+ * bisa dipaksa dengan STUDIO_PRATINJAU=1 / dimatikan dengan STUDIO_PRATINJAU=0. Di komputer lokal: mati.
+ */
+export const MODE_PRATINJAU = process.env.STUDIO_PRATINJAU ? process.env.STUDIO_PRATINJAU === '1' : DI_CLOUD;
 export const HOST = MODE_PRATINJAU ? '0.0.0.0' : '127.0.0.1';
 export const URL_STUDIO = `http://127.0.0.1:${PORT}`;
 
@@ -47,3 +52,13 @@ export function muatEnv() {
   }
 }
 muatEnv();
+
+// Di cloud, Remotion tidak bisa mengunduh Chrome sendiri → pakai Chromium bawaan container bila ada.
+if (DI_CLOUD && !process.env.BROWSER_EXECUTABLE) {
+  const dasar = '/opt/pw-browsers';
+  try {
+    const shell = fs.readdirSync(dasar).find((d) => d.startsWith('chromium_headless_shell'));
+    const f = shell && path.join(dasar, shell, 'chrome-headless-shell-linux64', 'chrome-headless-shell');
+    if (f && fs.existsSync(f)) process.env.BROWSER_EXECUTABLE = f;
+  } catch {}
+}

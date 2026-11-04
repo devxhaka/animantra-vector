@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { DIR, ROOT, URL_STUDIO } from '../server/jalur';
+import { DI_CLOUD, DIR, PORT, ROOT, URL_STUDIO } from '../server/jalur';
 import { api, lapor, studioJalan } from './api';
 import { TAHAP, type Job } from '../shared/tipe';
 
@@ -41,13 +41,18 @@ async function folderJob(id: string) {
 
 const PERINTAH: Record<string, () => Promise<void>> = {
   async server() {
+    const buka = !o['tanpa-buka'] && !DI_CLOUD; // di cloud tidak ada browser untuk dibuka
+    const petunjukCloud = () =>
+      DI_CLOUD && console.log(`SESI CLOUD: studio dibuka lewat panel pratinjau app Claude. Laporkan port ${PORT} ke app (report_preview_port).`);
     if (await studioJalan()) {
       console.log(`Studio sudah jalan di ${URL_STUDIO}`);
-      if (!o['tanpa-buka']) (await import('open')).default(URL_STUDIO).catch(() => {});
+      petunjukCloud();
+      if (buka) (await import('open')).default(URL_STUDIO).catch(() => {});
       return;
     }
     const { mulaiServer } = await import('../server/server');
-    await mulaiServer({ buka: !o['tanpa-buka'] });
+    await mulaiServer({ buka });
+    petunjukCloud();
   },
 
   /** Tunggu pesanan dari studio. Jalankan di background; selesai saat ada job. */
