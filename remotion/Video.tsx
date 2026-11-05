@@ -110,7 +110,7 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
           <AsetView key={'a' + i} aset={a} t={t} />
         ))}
         {tokoh.map((tk) => (
-          <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} />
+          <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} />
         ))}
         {aset.filter((a) => (a.z ?? 0) >= 5).map((a, i) => (
           <AsetView key={'d' + i} aset={a} t={t} />

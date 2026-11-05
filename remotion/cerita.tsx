@@ -3,6 +3,8 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig, Easing } from 'remotion'
 import type { Adegan, Ekspresi, Karakter, Lihat, Pose, Suasana, TokohAdegan } from '../shared/tipe';
 import { PARAM_EKSPRESI, PARAM_POSE, TokohSvg, VIEWBOX, campurEkspresi, campurPose, type StatusTokoh } from './karakter/Tokoh';
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
+import { gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
+import type { ModeAnimasi } from '../shared/tipe';
 
 const TRANSISI = 0.32; // detik perpindahan pose/ekspresi
 
@@ -53,10 +55,17 @@ export const TokohAdeganView: React.FC<{
   karakter: Karakter;
   adegan: Adegan;
   awal?: KeadaanAkhir;
-}> = ({ tokoh, karakter, adegan, awal }) => {
+  modeAnimasi?: ModeAnimasi;
+}> = ({ tokoh: tokohSpec, karakter, adegan, awal, modeAnimasi }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const t = frame / fps;
+  // Aksi khusus: Phase 2A hanya jalur fallback (event pose lama sintetis). Tanpa `aksi`,
+  // gabungUrutanFallback mengembalikan objek tokoh yang sama → perilaku identik dengan sebelumnya.
+  const tokoh = React.useMemo(
+    () => (tokohSpec.aksi?.length ? gabungUrutanFallback(tokohSpec, rencanakanAksi(tokohSpec, { modeBawaan: modeAnimasi, durasiAdegan: adegan.durasi, karakter })) : tokohSpec),
+    [tokohSpec, modeAnimasi, adegan.durasi, karakter],
+  );
   const st = statusPada(tokoh, t, awal);
 
   let x = tokoh.x;

@@ -218,7 +218,53 @@ export type TokohAdegan = {
   jalan?: { ke: number; mulai: number; selesai: number } | null;
   z?: number;
   siluet?: boolean; // tampil sebagai bayangan hitam (sosok yang tidak boleh/tidak perlu digambar jelas)
+  /** Mode animasi aksi khusus untuk tokoh ini. Bawaan: Spec.modeAnimasi ?? 'auto'. */
+  modeAnimasi?: ModeAnimasi;
+  /** Aksi khusus (Mystery Files). Tanpa field ini, tokoh dirender persis seperti sebelumnya. */
+  aksi?: AksiTokoh[];
 };
+
+// ---------------- Aksi khusus (animasi hibrida) ----------------
+/**
+ * existing = hanya mesin pose lama (aksi disederhanakan + peringatan);
+ * special  = aksi khusus (fallback + peringatan bila tidak bisa);
+ * auto     = aksi khusus bila didukung, selain itu fallback + peringatan.
+ */
+export type ModeAnimasi = 'existing' | 'special' | 'auto';
+/** Arah layar, atau titik target di layar (0..1, sama seperti posisi tokoh). */
+export type ArahAksi = 'kiri' | 'kanan' | 'atas' | 'bawah' | { x: number; y: number };
+export type TanganAksi = 'dep' | 'bel';
+export type BendaAksi = 'dokumen' | 'buku' | 'map';
+
+/** Waktu dalam DETIK relatif awal adegan (sama dengan `urutan[].pada`). */
+type AksiDasar = { mulai: number; durasi: number };
+export type AksiTurnHead = AksiDasar & {
+  jenis: 'turn-head';
+  arah: 'kiri' | 'kanan' | 'tengah';
+  lihat?: Lihat;
+  ekspresi?: Ekspresi;
+  /** kembali ke posisi semula di akhir aksi (bawaan true). false = tahan sampai adegan selesai. */
+  kembali?: boolean;
+};
+export type AksiFlashlightSweep = AksiDasar & {
+  jenis: 'flashlight-sweep';
+  tangan?: TanganAksi; // bawaan 'dep'
+  dari: ArahAksi;
+  ke: ArahAksi;
+  sinar?: boolean; // bawaan true
+  aset?: string; // SVG senter kustom (relatif folder video); hilang → gambar bawaan
+};
+export type AksiOpenObject = AksiDasar & {
+  jenis: 'open-object';
+  benda: BendaAksi;
+  posisi: { x: number; y: number }; // posisi benda di layar 0..1
+  skala?: number; // bawaan 1
+  tangan?: TanganAksi; // bawaan 'dep'
+  aset?: string; // SVG benda kustom; hilang → gambar bawaan
+  tetapTerbuka?: boolean; // bawaan true
+};
+export type AksiTokoh = AksiTurnHead | AksiFlashlightSweep | AksiOpenObject;
+export type JenisAksi = AksiTokoh['jenis'];
 
 export type Suasana = {
   gelap?: number; // 0..1 lapisan malam
@@ -244,6 +290,8 @@ export type Spec = {
   musik?: { file: string; volume?: number } | null;
   /** snapshot pemeran (format Cerita), disalin dari pesanan.json */
   pemeran?: Karakter[];
+  /** Mode animasi bawaan seluruh video (bisa ditimpa per tokoh). Kosong = 'auto'. */
+  modeAnimasi?: ModeAnimasi;
   adegan: Adegan[];
 };
 

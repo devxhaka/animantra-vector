@@ -5,6 +5,7 @@ import { renderMedia, renderStill, selectComposition } from '@remotion/renderer'
 import { DIR, ROOT } from '../server/jalur';
 import type { Job, Spec } from '../shared/tipe';
 import { lapor } from './api';
+import { cekAksiSpec } from './cek';
 
 const opsiBrowser = () => (process.env.BROWSER_EXECUTABLE ? { browserExecutable: process.env.BROWSER_EXECUTABLE } : {});
 
@@ -48,8 +49,17 @@ async function siapkanBundle(dir: string, onProgress?: (p: number) => void) {
   });
 }
 
+/** Cetak peringatan aksi khusus (sudah dideduplikasi) sebelum render; tidak ada aksi yang hilang diam-diam. */
+function laporanAksi(dir: string, spec: Spec) {
+  const h = cekAksiSpec(spec, (p) => fs.existsSync(path.join(dir, p)));
+  const semua = [...h.masalah.map((x) => '✗ ' + x), ...h.peringatan.map((x) => '! ' + x), ...h.info.map((x) => '· ' + x)];
+  if (semua.length) console.log('Aksi khusus:\n' + semua.map((x) => '  ' + x).join('\n'));
+  return h;
+}
+
 export async function renderCek(dir: string, detik: number[]) {
   const spec = bacaSpec(dir);
+  laporanAksi(dir, spec);
   siapkanAudio(dir, spec);
   const serveUrl = await siapkanBundle(dir);
   const inputProps = { spec, basis: '' };
@@ -68,6 +78,12 @@ export async function renderCek(dir: string, detik: number[]) {
 
 export async function renderFinal(job: Job, dir: string) {
   const spec = bacaSpec(dir);
+  const aksi = laporanAksi(dir, spec);
+  const nAksi = aksi.masalah.length + aksi.peringatan.length + aksi.info.length;
+  if (nAksi)
+    await lapor(job.id, {
+      log: `Aksi khusus: ${aksi.masalah.length} diabaikan, ${aksi.peringatan.length + aksi.info.length} disederhanakan/diganti (rincian di log render)`,
+    });
   siapkanAudio(dir, spec);
   let terakhir = -1;
   const persen = async (p: number) => {

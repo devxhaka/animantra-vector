@@ -30,6 +30,7 @@ const label = z.object({
 const pose = z.enum(POSE as unknown as [string, ...string[]]);
 const ekspresi = z.enum(EKSPRESI as unknown as [string, ...string[]]);
 const lihat = z.enum(['depan', 'kiri', 'kanan', 'atas', 'bawah']);
+const modeAnimasi = z.enum(['existing', 'special', 'auto']);
 const tokoh = z.object({
   id: z.string(),
   x: z.number(),
@@ -43,6 +44,9 @@ const tokoh = z.object({
   jalan: z.object({ ke: z.number(), mulai: z.number(), selesai: z.number() }).nullable().optional(),
   z: z.number().optional(),
   siluet: z.boolean().optional(),
+  modeAnimasi: modeAnimasi.optional(),
+  // detail tiap aksi divalidasi oleh validasiAksi() di shared/aksi.ts (satu sumber aturan), lewat `studio cek`
+  aksi: z.array(z.object({ jenis: z.string() }).passthrough()).optional(),
 });
 export const skemaAdegan = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, 'id adegan: huruf kecil/angka/strip'),
@@ -94,5 +98,6 @@ export const skemaSpec = z.object({
   logo: z.string().nullable().optional(),
   musik: z.object({ file: z.string(), volume: z.number().optional() }).nullable().optional(),
   pemeran: z.array(z.any()).optional(),
+  modeAnimasi: modeAnimasi.optional(),
   adegan: z.array(skemaAdegan).min(1),
 });

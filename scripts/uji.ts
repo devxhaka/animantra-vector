@@ -8,6 +8,10 @@ import { FORMATS, formatBertokoh, formatDari, formatMisteri } from '../shared/fo
 import { GAYA_BAWAAN, GAYA_MYSTERY, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
 import { AGENT_MORGAN, KARAKTER_CONTOH, PAKAIAN_PILIHAN } from '../shared/karakter-bawaan';
 import { SPEC_CONTOH } from '../shared/contoh-spec';
+import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
+import { aksiAktifPada, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
+import { cekAksiSpec } from '../cli/cek';
+import type { AksiTokoh, Spec, TokohAdegan } from '../shared/tipe';
 
 let lulus = 0;
 const gagal: string[] = [];
@@ -111,6 +115,197 @@ uji('riset.md tidak ada ditolak', () => {
   pastikan(cekRisetMisteri(tmp).length === 1, 'harus 1 masalah');
 });
 fs.rmSync(tmp, { recursive: true, force: true });
+
+// ======================= Phase 2A: animasi hibrida =======================
+console.log('Phase 2A: registri aksi');
+const T_DASAR: TokohAdegan = { id: 'morgan', x: 0.5, hadap: 'kanan', pose: 'diam', ekspresi: 'netral', lihat: 'depan' };
+const HEAD: AksiTokoh = { jenis: 'turn-head', mulai: 1, durasi: 2, arah: 'kanan' };
+const SENTER: AksiTokoh = { jenis: 'flashlight-sweep', mulai: 0.5, durasi: 2, dari: 'kiri', ke: 'kanan' };
+const BUKA: AksiTokoh = { jenis: 'open-object', mulai: 3, durasi: 2, benda: 'dokumen', posisi: { x: 0.7, y: 0.65 } };
+const tersediaSemua = Object.fromEntries(ID_AKSI.map((j) => [j, { ...REGISTRI_AKSI[j], tersedia: true }]));
+const kode = (r: RencanaAksi) => r.peringatan.map((p) => p.kode);
+
+uji('3 aksi terdaftar dengan bagian tubuh yang benar', () => {
+  pastikan(JSON.stringify(ID_AKSI) === JSON.stringify(['turn-head', 'flashlight-sweep', 'open-object']), ID_AKSI.join());
+  pastikan(REGISTRI_AKSI['turn-head'].bagian(HEAD).join() === 'kepala', 'turn-head');
+  pastikan(REGISTRI_AKSI['flashlight-sweep'].bagian(SENTER).join() === 'lengan-dep', 'senter dep');
+  pastikan(REGISTRI_AKSI['flashlight-sweep'].bagian({ ...SENTER, tangan: 'bel' } as AksiTokoh).join() === 'lengan-bel', 'senter bel');
+  pastikan(REGISTRI_AKSI['open-object'].bagian(BUKA).join() === 'lengan-dep', 'buka');
+});
+uji('Phase 2A jujur: belum ada implementasi khusus (tersedia=false)', () => pastikan(ID_AKSI.every((j) => !REGISTRI_AKSI[j].tersedia), 'harus false'));
+
+console.log('Phase 2A: kompatibilitas');
+uji('tokoh tanpa aksi → rencana kosong, tanpa peringatan, objek tokoh tidak berubah', () => {
+  const r = rencanakanAksi(T_DASAR);
+  pastikan(!r.khusus.length && !r.urutanFallback.length && !r.peringatan.length, JSON.stringify(r));
+  pastikan(gabungUrutanFallback(T_DASAR, r) === T_DASAR, 'harus objek yang sama');
+  pastikan(aksiAktifPada(r, 1).length === 0, 'tidak ada aksi aktif');
+});
+uji('spec lama melewati cekAksiSpec tanpa satu baris pun', () => {
+  const h = cekAksiSpec({ ...SPEC_CONTOH, adegan: [{ id: 'a', narasi: 'x', durasi: 2, tokoh: [T_DASAR] }] }, () => true);
+  pastikan(!h.masalah.length && !h.peringatan.length && !h.info.length, JSON.stringify(h));
+});
+uji('zod: aksi & modeAnimasi diterima, mode tak dikenal ditolak', () => {
+  valid({ ...SPEC_CONTOH, modeAnimasi: 'auto', adegan: [{ id: 'a', narasi: 'x', durasi: 2, tokoh: [{ ...T_DASAR, modeAnimasi: 'special', aksi: [HEAD, SENTER] }] }] });
+  pastikan(!skemaSpec.safeParse({ ...SPEC_CONTOH, modeAnimasi: 'ngawur' }).success, 'harus ditolak');
+});
+
+console.log('Phase 2A: routing');
+uji('mode bawaan = auto; spec.modeAnimasi berlaku; tokoh menimpa spec', () => {
+  pastikan(rencanakanAksi({ ...T_DASAR, aksi: [HEAD] }).mode === 'auto', 'bawaan auto');
+  pastikan(rencanakanAksi({ ...T_DASAR, aksi: [HEAD] }, { modeBawaan: 'existing' }).mode === 'existing', 'spec');
+  pastikan(rencanakanAksi({ ...T_DASAR, modeAnimasi: 'special', aksi: [HEAD] }, { modeBawaan: 'existing' }).mode === 'special', 'tokoh menimpa');
+});
+uji('existing → semua fallback pose lama + info "disederhanakan" yang jujur', () => {
+  const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: 'existing', aksi: [HEAD, SENTER, BUKA] }, { registri: tersediaSemua });
+  pastikan(!r.khusus.length, 'tidak boleh ada aksi khusus');
+  pastikan(kode(r).filter((k) => k === 'disederhanakan').length === 3, kode(r).join());
+  pastikan(r.peringatan.every((p) => p.tingkat === 'info'), 'tingkat info');
+  const teks = r.peringatan.map((p) => p.pesan).join(' | ');
+  pastikan(/kepala TIDAK berputar/.test(teks) && /senter, sinar, dan gerak menyapu TIDAK/.test(teks) && /dokumen TIDAK digambar dan TIDAK terbuka/.test(teks), teks);
+  const ev = r.urutanFallback;
+  pastikan(ev.some((e) => e.pada === 1 && e.lihat === 'kanan'), 'turn-head → lihat kanan');
+  pastikan(ev.some((e) => e.pada === 0.5 && e.pose === 'menunjuk'), 'senter → menunjuk');
+  pastikan(ev.some((e) => e.pada === 3 && e.pose === 'meraih') && ev.some((e) => e.pada === 4 && e.pose === 'berpikir'), 'buka → meraih, berpikir');
+  pastikan(ev.some((e) => e.pada === 5 && e.pose === 'diam'), 'kembali ke pose dasar setelah selesai');
+});
+uji('special/auto saat implementasi belum ada → fallback + peringatan "belum-tersedia"', () => {
+  for (const mode of ['special', 'auto'] as const) {
+    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [HEAD] });
+    pastikan(!r.khusus.length && r.urutanFallback.length > 0, mode);
+    pastikan(r.peringatan[0]?.kode === 'belum-tersedia' && r.peringatan[0].tingkat === 'peringatan', mode + ' ' + kode(r));
+  }
+});
+uji('special/auto saat implementasi tersedia → aksi khusus, tanpa fallback', () => {
+  for (const mode of ['special', 'auto'] as const) {
+    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [HEAD, SENTER, BUKA] }, { registri: tersediaSemua });
+    pastikan(r.khusus.length === 3 && !r.urutanFallback.length && !r.peringatan.length, mode + ' ' + kode(r));
+  }
+});
+uji('auto + rig tidak cocok → fallback + peringatan "rig-tidak-cocok"', () => {
+  const reg = { ...tersediaSemua, 'turn-head': { ...tersediaSemua['turn-head'], cocokRig: () => 'hijab menutupi telinga' } };
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD] }, { registri: reg });
+  pastikan(!r.khusus.length && kode(r).join() === 'rig-tidak-cocok', kode(r).join());
+});
+uji('nilai bawaan terisi saat normalisasi', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD, SENTER, BUKA] }, { registri: tersediaSemua });
+  const [h, f, o] = r.khusus.map((x) => x.aksi as any);
+  pastikan(h.kembali === true && f.tangan === 'dep' && f.sinar === true && o.tangan === 'dep' && o.skala === 1 && o.tetapTerbuka === true, JSON.stringify([h, f, o]));
+});
+
+console.log('Phase 2A: timeline & interpolasi (detik)');
+uji('fase & progres: sebelum, masuk, tahan, keluar, sesudah', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD] }, { registri: tersediaSemua }).khusus[0];
+  pastikan(evaluasiAksi(r, 0.99) === null, 'sebelum mulai');
+  const m = evaluasiAksi(r, 1.15)!;
+  pastikan(m.fase === 'masuk' && m.amplop > 0 && m.amplop < 1 && Math.abs(m.progres - 0.075) < 1e-9, JSON.stringify(m));
+  const t = evaluasiAksi(r, 2)!;
+  pastikan(t.fase === 'tahan' && t.amplop === 1 && t.progres === 0.5, JSON.stringify(t));
+  const k = evaluasiAksi(r, 2.9)!;
+  pastikan(k.fase === 'keluar' && k.amplop > 0 && k.amplop < 1, JSON.stringify(k));
+  pastikan(evaluasiAksi(r, 3.01) === null, 'sesudah selesai (kembali=true)');
+});
+uji('kembali:false → ditahan sampai adegan selesai', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [{ ...HEAD, kembali: false } as AksiTokoh] }, { registri: tersediaSemua }).khusus[0];
+  const e = evaluasiAksi(r, 10)!;
+  pastikan(e.fase === 'ditahan' && e.amplop === 1 && e.progres === 1, JSON.stringify(e));
+  pastikan(evaluasiAksi(r, 2.95)!.amplop === 1, 'tidak ada fase keluar');
+});
+uji('amplop naik monoton saat masuk & turun monoton saat keluar', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD] }, { registri: tersediaSemua }).khusus[0];
+  let lalu = -1;
+  for (let t = 1; t <= 1.3; t += 0.01) {
+    const a = evaluasiAksi(r, t)!.amplop;
+    pastikan(a >= lalu - 1e-12, 'masuk t=' + t);
+    lalu = a;
+  }
+  lalu = 2;
+  for (let t = 2.7; t < 3; t += 0.01) {
+    const a = evaluasiAksi(r, t)!.amplop;
+    pastikan(a <= lalu + 1e-12, 'keluar t=' + t);
+    lalu = a;
+  }
+});
+uji('durasi transisi = min(0,3 dtk, 25% durasi)', () => pastikan(durasiTransisi(2) === 0.3 && durasiTransisi(0.8) === 0.2, 'nilai'));
+
+console.log('Phase 2A: tumpang tindih & kepemilikan bagian tubuh');
+uji('dua aksi lengan-dep tumpang tindih → yang mulai belakangan menang + peringatan', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [SENTER, { ...BUKA, mulai: 1.5 } as AksiTokoh] }, { registri: tersediaSemua });
+  pastikan(kode(r).includes('tumpang-tindih'), kode(r).join());
+  const a = aksiAktifPada(r, 2);
+  pastikan(a.length === 1 && a[0].aksi.jenis === 'open-object', JSON.stringify(a.map((x) => x.aksi.jenis)));
+  pastikan(aksiAktifPada(r, 1)[0]?.aksi.jenis === 'flashlight-sweep', 'sebelum tumpang tindih senter aktif');
+});
+uji('bagian berbeda berjalan bersamaan (menoleh + senter)', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD, SENTER] }, { registri: tersediaSemua });
+  pastikan(!kode(r).includes('tumpang-tindih'), kode(r).join());
+  const a = aksiAktifPada(r, 1.5).map((x) => x.bagian.join());
+  pastikan(a.length === 2 && a.includes('kepala') && a.includes('lengan-dep'), JSON.stringify(a));
+});
+uji('mulai sama → indeks lebih besar menang (deterministik)', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [SENTER, { ...SENTER, ke: 'atas' } as AksiTokoh] }, { registri: tersediaSemua });
+  pastikan(aksiAktifPada(r, 1)[0].indeks === 1, 'indeks 1');
+});
+
+console.log('Phase 2A: input salah & aset');
+uji('jenis tak dikenal → "tidak-dikenal" (masalah), diabaikan tapi dilaporkan', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [{ jenis: 'salto', mulai: 0, durasi: 1 } as unknown as AksiTokoh] });
+  pastikan(kode(r).join() === 'tidak-dikenal' && r.peringatan[0].tingkat === 'masalah' && !r.khusus.length && !r.urutanFallback.length, kode(r).join());
+});
+uji('parameter invalid → "parameter-invalid" dengan rincian', () => {
+  const salah = [
+    { jenis: 'turn-head', mulai: 0, durasi: 1, arah: 'serong' },
+    { jenis: 'flashlight-sweep', mulai: -1, durasi: 0, dari: 'kiri' },
+    { jenis: 'open-object', mulai: 0, durasi: 1, benda: 'koper', posisi: { x: 2, y: 0.5 } },
+  ] as unknown as AksiTokoh[];
+  const r = rencanakanAksi({ ...T_DASAR, aksi: salah });
+  pastikan(kode(r).every((k) => k === 'parameter-invalid') && r.peringatan.length === 3, kode(r).join());
+  const teks = r.peringatan.map((p) => p.pesan).join(' | ');
+  for (const frasa of ['arah harus', 'mulai harus', 'durasi harus', 'ke wajib', 'benda harus', 'posisi di luar']) pastikan(teks.includes(frasa), 'kurang: ' + frasa + ' dalam ' + teks);
+});
+uji('aset kustom hilang → tetap aksi khusus dengan gambar bawaan + peringatan', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [{ ...SENTER, aset: 'aset/senter.svg' } as AksiTokoh] }, { registri: tersediaSemua, asetHilang: ['aset/senter.svg'] });
+  pastikan(r.khusus.length === 1 && r.khusus[0].pakaiGambarBawaan && kode(r).join() === 'aset-hilang', kode(r).join());
+  const ada = rencanakanAksi({ ...T_DASAR, aksi: [{ ...SENTER, aset: 'aset/senter.svg' } as AksiTokoh] }, { registri: tersediaSemua });
+  pastikan(!ada.khusus[0].pakaiGambarBawaan && !ada.peringatan.length, 'aset ada');
+});
+uji('aksi melewati adegan & terlalu singkat diperingatkan', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [{ ...HEAD, durasi: 0.1 } as AksiTokoh, { ...BUKA, mulai: 4 } as AksiTokoh] }, { registri: tersediaSemua, durasiAdegan: 5 });
+  pastikan(kode(r).includes('terlalu-singkat') && kode(r).includes('melewati-adegan'), kode(r).join());
+});
+uji('cekAksiSpec: masalah menggagalkan, fallback jadi peringatan (aset tak relevan saat fallback)', () => {
+  const spec = {
+    ...SPEC_CONTOH,
+    adegan: [{ id: 'a', narasi: 'x', durasi: 6, tokoh: [{ ...T_DASAR, aksi: [HEAD, { ...SENTER, aset: 'aset/tidak-ada.svg' }, { jenis: 'terbang', mulai: 0, durasi: 1 }] }] }],
+  } as unknown as Spec;
+  const h = cekAksiSpec(spec, (p) => p !== 'aset/tidak-ada.svg');
+  pastikan(h.masalah.length === 1 && /terbang/.test(h.masalah[0]), JSON.stringify(h.masalah));
+  pastikan(h.peringatan.length === 2 && h.peringatan.every((x) => /belum tersedia/.test(x)), JSON.stringify(h.peringatan));
+});
+
+console.log('Phase 2A: arah & tokoh menghadap kiri');
+uji('arah layar dikonversi ke lihat lokal (tokoh menghadap kiri dicerminkan)', () => {
+  pastikan(lihatDariArah('kanan', { x: 0.5, y: 0.8, hadap: 'kanan' }) === 'kanan', 'hadap kanan');
+  pastikan(lihatDariArah('kanan', { x: 0.5, y: 0.8, hadap: 'kiri' }) === 'kiri', 'hadap kiri → cermin');
+  pastikan(lihatDariArah({ x: 0.2, y: 0.5 }, { x: 0.6, y: 0.8, hadap: 'kanan' }) === 'kiri', 'target di kiri');
+  pastikan(lihatDariArah({ x: 0.62, y: 0.1 }, { x: 0.6, y: 0.8, hadap: 'kanan' }) === 'atas', 'target di atas');
+  const r = rencanakanAksi({ ...T_DASAR, hadap: 'kiri', modeAnimasi: 'existing', aksi: [HEAD] });
+  pastikan(r.urutanFallback[0].lihat === 'kiri', 'fallback turn-head kanan pada tokoh hadap kiri → lihat kiri');
+});
+
+console.log('Phase 2A: determinisme');
+uji('rencana & evaluasi identik bila diulang, dan tidak bergantung urutan evaluasi frame', () => {
+  const tokoh = { ...T_DASAR, aksi: [HEAD, SENTER, BUKA] };
+  const r1 = rencanakanAksi(tokoh, { registri: tersediaSemua, durasiAdegan: 6 });
+  const r2 = rencanakanAksi(tokoh, { registri: tersediaSemua, durasiAdegan: 6 });
+  pastikan(JSON.stringify(r1) === JSON.stringify(r2), 'rencana berbeda');
+  const frame = Array.from({ length: 180 }, (_, f) => f);
+  const maju = frame.map((f) => JSON.stringify(aksiAktifPada(r1, f / 30)));
+  const acak = [...frame].sort((a, b) => ((a * 7919) % 181) - ((b * 7919) % 181)); // urutan "acak" deterministik
+  const hasilAcak = new Map(acak.map((f) => [f, JSON.stringify(aksiAktifPada(r1, f / 30))]));
+  pastikan(frame.every((f) => hasilAcak.get(f) === maju[f]), 'urutan evaluasi memengaruhi hasil');
+  pastikan(JSON.stringify(tokoh.aksi) === JSON.stringify([HEAD, SENTER, BUKA]), 'input tidak boleh dimutasi');
+});
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);
 process.exit(gagal.length ? 1 : 0);

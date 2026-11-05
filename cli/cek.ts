@@ -3,6 +3,8 @@ import path from 'node:path';
 import { skemaSpec } from './skema';
 import { DIR } from '../server/jalur';
 import { formatMisteri } from '../shared/formats';
+import { dedupPeringatan, rencanakanAksi } from '../remotion/karakter/aksi/resolver';
+import type { Spec } from '../shared/tipe';
 
 /** Validasi spec.json + keberadaan berkas. Cetak masalah dalam bahasa yang bisa langsung diperbaiki. */
 export function cekSpec(dir: string): boolean {
@@ -49,11 +51,16 @@ export function cekSpec(dir: string): boolean {
   if (spec.judulSorot && spec.judul && !spec.judul.includes(spec.judulSorot)) masalah.push('judulSorot harus potongan persis dari judul');
   if (!fs.existsSync(path.join(dir, 'caption.txt'))) saran.push('caption.txt belum ditulis');
   if (formatMisteri(spec.format)) masalah.push(...cekRisetMisteri(dir));
+  const aksi = cekAksiSpec(spec, (p) => fs.existsSync(path.join(dir, p)));
+  masalah.push(...aksi.masalah);
+  saran.push(...aksi.peringatan);
+  const info = aksi.info;
 
   const total = (spec.adegan ?? []).reduce((s: number, a: any) => s + (a.durasi ?? 0), 0);
   console.log(`Spec: ${spec.adegan?.length ?? 0} adegan · total ${total.toFixed(1)} dtk`);
   for (const m of masalah) console.log('  ✗ ' + m);
   for (const s of saran) console.log('  ! ' + s);
+  for (const s of info) console.log('  · ' + s);
   if (!masalah.length) console.log('✓ Spec valid');
   return masalah.length === 0;
 }
@@ -85,4 +92,31 @@ export function cekRisetMisteri(dir: string): string[] {
     if (!badan.length) masalah.push('riset.md: bagian Sumber belum berisi sumber (butir atau tautan)');
   }
   return masalah;
+}
+
+/**
+ * Validasi aksi khusus semua tokoh di spec memakai resolver yang SAMA dengan renderer.
+ * Peringatan dikumpulkan sebagai data lalu dideduplikasi di sini (bukan di jalur render).
+ */
+export function cekAksiSpec(spec: Partial<Spec>, adaBerkas: (p: string) => boolean) {
+  const masalah: string[] = [];
+  const peringatan: string[] = [];
+  const info: string[] = [];
+  for (const [i, a] of (spec.adegan ?? []).entries()) {
+    for (const tk of a.tokoh ?? []) {
+      if (!tk.aksi?.length) continue;
+      const asetHilang = tk.aksi.map((x) => (x as { aset?: unknown }).aset).filter((x): x is string => typeof x === 'string' && !adaBerkas(x));
+      const rencana = rencanakanAksi(tk, {
+        modeBawaan: spec.modeAnimasi,
+        durasiAdegan: a.durasi,
+        asetHilang,
+        karakter: spec.pemeran?.find((p) => p.id === tk.id),
+      });
+      for (const p of dedupPeringatan(rencana.peringatan)) {
+        const baris = `adegan[${i}] "${a.id}" ${tk.id}${p.indeks !== undefined ? ` aksi #${p.indeks}` : ''}: ${p.pesan}`;
+        (p.tingkat === 'masalah' ? masalah : p.tingkat === 'peringatan' ? peringatan : info).push(baris);
+      }
+    }
+  }
+  return { masalah, peringatan, info };
 }
