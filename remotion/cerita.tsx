@@ -3,7 +3,8 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig, Easing } from 'remotion'
 import type { Adegan, Ekspresi, Karakter, Lihat, Pose, Suasana, TokohAdegan } from '../shared/tipe';
 import { PARAM_EKSPRESI, PARAM_POSE, TokohSvg, VIEWBOX, campurEkspresi, campurPose, type StatusTokoh } from './karakter/Tokoh';
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
-import { gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
+import { aksiAktifPada, gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
+import { terapkanAksi } from './karakter/aksi/terapkan';
 import type { ModeAnimasi } from '../shared/tipe';
 
 const TRANSISI = 0.32; // detik perpindahan pose/ekspresi
@@ -60,12 +61,13 @@ export const TokohAdeganView: React.FC<{
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const t = frame / fps;
-  // Aksi khusus: Phase 2A hanya jalur fallback (event pose lama sintetis). Tanpa `aksi`,
-  // gabungUrutanFallback mengembalikan objek tokoh yang sama → perilaku identik dengan sebelumnya.
-  const tokoh = React.useMemo(
-    () => (tokohSpec.aksi?.length ? gabungUrutanFallback(tokohSpec, rencanakanAksi(tokohSpec, { modeBawaan: modeAnimasi, durasiAdegan: adegan.durasi, karakter })) : tokohSpec),
+  // Aksi khusus: rencana statis (routing/fallback) dihitung sekali per adegan. Tanpa `aksi`
+  // tidak ada rencana dan tokoh dipakai apa adanya → perilaku identik dengan sebelumnya.
+  const rencana = React.useMemo(
+    () => (tokohSpec.aksi?.length ? rencanakanAksi(tokohSpec, { modeBawaan: modeAnimasi, durasiAdegan: adegan.durasi, karakter }) : null),
     [tokohSpec, modeAnimasi, adegan.durasi, karakter],
   );
+  const tokoh = React.useMemo(() => (rencana ? gabungUrutanFallback(tokohSpec, rencana) : tokohSpec), [tokohSpec, rencana]);
   const st = statusPada(tokoh, t, awal);
 
   let x = tokoh.x;
@@ -78,7 +80,9 @@ export const TokohAdeganView: React.FC<{
   }
   const bicara = adegan.pembicara === tokoh.id && adegan.mulut?.length ? (adegan.mulut[frame] ?? 0) : 0;
 
-  const s: StatusTokoh = { pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet };
+  const dasar: StatusTokoh = { pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet };
+  // aksi khusus aktif di detik ini (murni dari t) → override bagian tubuh yang dipegang aksi
+  const s = rencana ? terapkanAksi(dasar, aksiAktifPada(rencana, t), { hadap: st.hadap }) : dasar;
   const lebar = width * 0.62 * (tokoh.skala ?? 1);
   const tinggi = (lebar * VIEWBOX.h) / VIEWBOX.w;
   const kakiY = (tokoh.y ?? 0.8) * height;

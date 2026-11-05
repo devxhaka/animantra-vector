@@ -13,7 +13,9 @@ tokoh, TTS, subtitle karaoke, antrean job, dan pustaka aset semuanya dipakai ula
 | Preset gaya "Mystery Files" (warna + teks karaoke) | `shared/gaya-bawaan.ts` → `GAYA_MYSTERY`, `data/gaya/mystery-files.json` | Phase 1 ✓ |
 | Agent Morgan | `shared/karakter-bawaan.ts` → `AGENT_MORGAN`, `data/karakter/morgan.json` | Phase 1 ✓ |
 | Validasi `riset.md` 5 kategori + sumber | `cli/cek.ts` → `cekRisetMisteri()` | Phase 1 ✓ |
-| Animasi tokoh hibrida (aksi khusus, props, routing) | `remotion/karakter/` | Phase 2 (belum) |
+| Animasi tokoh hibrida: fondasi, routing, fallback | `shared/aksi.ts`, `remotion/karakter/aksi/` | Phase 2A ✓ |
+| Aksi `turn-head` | `remotion/karakter/aksi/terapkan.ts` | Phase 2B ✓ |
+| Aksi `flashlight-sweep`, `open-object` | `remotion/karakter/aksi/` | Phase 2C/2D (belum; fallback pose lama) |
 | Mesin sinematik (kamera, cahaya, parallax, bukti) | `remotion/sinematik/` | Phase 3 (belum) |
 | Kontrol studio khusus mystery + tab Pustaka | `studio/src/` | Phase 4 (belum) |
 

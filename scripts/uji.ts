@@ -11,7 +11,10 @@ import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec } from '../cli/cek';
-import type { AksiTokoh, Spec, TokohAdegan } from '../shared/tipe';
+import { PUTAR_MAKS, targetPutar, terapkanAksi } from '../remotion/karakter/aksi/terapkan';
+import { PARAM_EKSPRESI, PARAM_POSE, PUTAR_DASAR, type StatusTokoh } from '../remotion/karakter/Tokoh';
+import type { AksiAktif } from '../remotion/karakter/aksi/resolver';
+import type { AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
 
 let lulus = 0;
 const gagal: string[] = [];
@@ -132,7 +135,10 @@ uji('3 aksi terdaftar dengan bagian tubuh yang benar', () => {
   pastikan(REGISTRI_AKSI['flashlight-sweep'].bagian({ ...SENTER, tangan: 'bel' } as AksiTokoh).join() === 'lengan-bel', 'senter bel');
   pastikan(REGISTRI_AKSI['open-object'].bagian(BUKA).join() === 'lengan-dep', 'buka');
 });
-uji('Phase 2A jujur: belum ada implementasi khusus (tersedia=false)', () => pastikan(ID_AKSI.every((j) => !REGISTRI_AKSI[j].tersedia), 'harus false'));
+uji('status implementasi jujur: turn-head tersedia (2B); senter & open-object belum', () => {
+  pastikan(REGISTRI_AKSI['turn-head'].tersedia, 'turn-head harus tersedia');
+  pastikan(!REGISTRI_AKSI['flashlight-sweep'].tersedia && !REGISTRI_AKSI['open-object'].tersedia, 'lainnya belum');
+});
 
 console.log('Phase 2A: kompatibilitas');
 uji('tokoh tanpa aksi → rencana kosong, tanpa peringatan, objek tokoh tidak berubah', () => {
@@ -171,7 +177,7 @@ uji('existing → semua fallback pose lama + info "disederhanakan" yang jujur', 
 });
 uji('special/auto saat implementasi belum ada → fallback + peringatan "belum-tersedia"', () => {
   for (const mode of ['special', 'auto'] as const) {
-    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [HEAD] });
+    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [SENTER] });
     pastikan(!r.khusus.length && r.urutanFallback.length > 0, mode);
     pastikan(r.peringatan[0]?.kode === 'belum-tersedia' && r.peringatan[0].tingkat === 'peringatan', mode + ' ' + kode(r));
   }
@@ -280,7 +286,8 @@ uji('cekAksiSpec: masalah menggagalkan, fallback jadi peringatan (aset tak relev
   } as unknown as Spec;
   const h = cekAksiSpec(spec, (p) => p !== 'aset/tidak-ada.svg');
   pastikan(h.masalah.length === 1 && /terbang/.test(h.masalah[0]), JSON.stringify(h.masalah));
-  pastikan(h.peringatan.length === 2 && h.peringatan.every((x) => /belum tersedia/.test(x)), JSON.stringify(h.peringatan));
+  // turn-head kini aksi khusus (tanpa peringatan); senter masih fallback (1 peringatan)
+  pastikan(h.peringatan.length === 1 && /flashlight-sweep.*belum tersedia/.test(h.peringatan[0]), JSON.stringify(h.peringatan));
 });
 
 console.log('Phase 2A: arah & tokoh menghadap kiri');
@@ -305,6 +312,59 @@ uji('rencana & evaluasi identik bila diulang, dan tidak bergantung urutan evalua
   const hasilAcak = new Map(acak.map((f) => [f, JSON.stringify(aksiAktifPada(r1, f / 30))]));
   pastikan(frame.every((f) => hasilAcak.get(f) === maju[f]), 'urutan evaluasi memengaruhi hasil');
   pastikan(JSON.stringify(tokoh.aksi) === JSON.stringify([HEAD, SENTER, BUKA]), 'input tidak boleh dimutasi');
+});
+
+// ======================= Phase 2B: turn-head =======================
+console.log('Phase 2B: turn-head');
+const S_DASAR: StatusTokoh = { pose: PARAM_POSE.diam, ekspresi: PARAM_EKSPRESI.netral, lihat: [0.35, 0], t: 1, bicara: 0, jalan: NaN };
+const aktifHead = (a: Partial<AksiTurnHead>, amplop: number): AksiAktif => ({
+  indeks: 0, aksi: { ...(HEAD as AksiTurnHead), kembali: true, ...a } as AksiTokoh, bagian: ['kepala'], progres: 0.5, amplop, fase: 'tahan', pakaiGambarBawaan: true,
+});
+uji('arah layar → putar lokal, dicerminkan untuk tokoh menghadap kiri', () => {
+  pastikan(targetPutar('tengah', 'kanan') === 0 && targetPutar('tengah', 'kiri') === 0, 'tengah');
+  pastikan(targetPutar('kanan', 'kanan') === PUTAR_MAKS && targetPutar('kiri', 'kanan') === -PUTAR_MAKS, 'hadap kanan');
+  pastikan(targetPutar('kanan', 'kiri') === -PUTAR_MAKS && targetPutar('kiri', 'kiri') === PUTAR_MAKS, 'hadap kiri');
+});
+uji('tanpa aksi aktif → status sama persis (objek yang sama)', () => pastikan(terapkanAksi(S_DASAR, [], { hadap: 'kanan' }) === S_DASAR, 'objek berbeda'));
+uji('amplop 0 → wajah bawaan (PUTAR_DASAR) & mata tidak berubah; amplop 1 → target', () => {
+  const nol = terapkanAksi(S_DASAR, [aktifHead({ arah: 'kiri' }, 0)], { hadap: 'kanan' });
+  pastikan(nol.putarKepala === PUTAR_DASAR && nol.lihat[0] === 0.35 && nol.lihat[1] === 0, JSON.stringify(nol));
+  const satu = terapkanAksi(S_DASAR, [aktifHead({ arah: 'kiri' }, 1)], { hadap: 'kanan' });
+  pastikan(satu.putarKepala === -PUTAR_MAKS && satu.lihat[0] < 0, JSON.stringify(satu));
+});
+uji('interpolasi halus: putar bergerak monoton dari dasar ke target', () => {
+  let lalu = Infinity;
+  for (let m = 0; m <= 1.0001; m += 0.1) {
+    const p = terapkanAksi(S_DASAR, [aktifHead({ arah: 'kiri' }, m)], { hadap: 'kanan' }).putarKepala!;
+    pastikan(p <= lalu + 1e-12, 'tidak monoton di m=' + m);
+    lalu = p;
+  }
+});
+uji('ekspresi opsional dicampur; lihat eksplisit dipakai bila ada', () => {
+  const e = terapkanAksi(S_DASAR, [aktifHead({ arah: 'kanan', ekspresi: 'kaget' }, 1)], { hadap: 'kanan' });
+  pastikan(e.ekspresi.buka === PARAM_EKSPRESI.kaget.buka && e.ekspresi.mulut === PARAM_EKSPRESI.kaget.mulut, 'ekspresi kaget');
+  const l = terapkanAksi(S_DASAR, [aktifHead({ arah: 'kanan', lihat: 'atas' }, 1)], { hadap: 'kanan' });
+  pastikan(l.lihat[0] === 0.3 && l.lihat[1] === -1, JSON.stringify(l.lihat));
+  const tengah = terapkanAksi(S_DASAR, [aktifHead({ arah: 'tengah' }, 1)], { hadap: 'kanan' });
+  pastikan(tengah.putarKepala === 0 && tengah.lihat[0] === 0, 'menghadap kamera, mata lurus');
+});
+uji('input status tidak dimutasi', () => {
+  const salin = JSON.stringify(S_DASAR);
+  terapkanAksi(S_DASAR, [aktifHead({ arah: 'kiri', ekspresi: 'cemas' }, 1)], { hadap: 'kanan' });
+  pastikan(JSON.stringify(S_DASAR) === salin, 'termutasi');
+});
+uji('alur penuh resolver → terapkan: kembali=true lepas setelah selesai, kembali=false ditahan', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD] });
+  pastikan(r.khusus.length === 1 && !r.urutanFallback.length && !r.peringatan.length, 'turn-head harus khusus tanpa fallback: ' + kode(r));
+  const tengah = terapkanAksi(S_DASAR, aksiAktifPada(r, 2), { hadap: 'kanan' });
+  pastikan(tengah.putarKepala === PUTAR_MAKS, 'di tengah aksi: ' + tengah.putarKepala);
+  pastikan(terapkanAksi(S_DASAR, aksiAktifPada(r, 3.5), { hadap: 'kanan' }).putarKepala === undefined, 'setelah selesai: kembali ke wajah bawaan');
+  const tahan = rencanakanAksi({ ...T_DASAR, aksi: [{ ...HEAD, kembali: false } as AksiTokoh] });
+  pastikan(terapkanAksi(S_DASAR, aksiAktifPada(tahan, 9), { hadap: 'kanan' }).putarKepala === PUTAR_MAKS, 'ditahan');
+});
+uji('mode existing tetap fallback walau turn-head tersedia', () => {
+  const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: 'existing', aksi: [HEAD] });
+  pastikan(!r.khusus.length && kode(r).join() === 'disederhanakan', kode(r).join());
 });
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);

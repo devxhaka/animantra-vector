@@ -55,7 +55,7 @@ export const PARAM_EKSPRESI: Record<Ekspresi, ParamEkspresi> = {
   serius: { alis: [-15, -4], buka: 0.84, pupil: 1, senyum: -0.05, mulut: 0, pipi: 0.1 },
   bingung: { alis: [10, 8], alisKanan: [-8, 0], buka: 0.95, pupil: 1, senyum: -0.15, mulut: 0.04, pipi: 0.15, miring: 8 },
 };
-const LIHAT: Record<Lihat, [number, number]> = { depan: [0.35, 0], kiri: [-1, 0], kanan: [1, 0], atas: [0.3, -1], bawah: [0.3, 1] };
+export const LIHAT: Record<Lihat, [number, number]> = { depan: [0.35, 0], kiri: [-1, 0], kanan: [1, 0], atas: [0.3, -1], bawah: [0.3, 1] };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export function campurPose(a: ParamPose, b: ParamPose, t: number): ParamPose {
@@ -98,7 +98,16 @@ export type StatusTokoh = {
   bicara: number; // 0..1 amplop mulut frame ini
   jalan: number; // fase langkah (radian) atau NaN bila tidak berjalan
   siluet?: boolean;
+  /**
+   * Opsional (aksi turn-head): arah wajah lokal -1..1. Kosong = wajah 3/4 bawaan (perilaku lama).
+   * 0 = menghadap kamera, +1 = ke arah hadap tokoh, -1 = menoleh ke belakang bahu.
+   * Nilai PUTAR_DASAR menghasilkan wajah yang sama persis dengan wajah bawaan.
+   */
+  putarKepala?: number;
 };
+
+/** Nilai putarKepala yang setara wajah 3/4 bawaan (fx = 0,14·R). */
+export const PUTAR_DASAR = 0.14 / 0.3;
 
 function hashId(s: string) {
   let h = 0;
@@ -206,26 +215,40 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
     Q ${-lebarBawah / 2} ${bawahBadan} ${-lebarBawah / 2} ${bawahBadan - 10} Z`;
 
   // wajah (3/4 menghadap kanan)
-  const fx = R * 0.14;
+  // Wajah: posisi horizontal fitur. Tanpa putarKepala → nilai lama persis.
+  const putar = s.putarKepala === undefined ? null : Math.max(-1, Math.min(1, s.putarKepala));
+  const fx = putar === null ? R * 0.14 : R * 0.3 * putar;
+  // faktor mata kiri/kanan lokal: di PUTAR_DASAR sama dengan bawaan (kiri jauh+kecil, kanan dekat)
+  const kPutar = putar === null ? 0 : putar / PUTAR_DASAR; // 1 = bawaan, 0 = menghadap kamera, -1 = 3/4 cermin
+  const jarakKiri = putar === null ? 1 : 0.96 + 0.04 * kPutar;
+  const jarakKanan = putar === null ? 0.92 : 0.96 - 0.04 * kPutar;
+  // ukuran mata relatif mata besar (R·0,13); mata "kecil" bawaan = R·0,115 → rasio tepat 0,115/0,13
+  const KECIL = 0.115 / 0.13;
+  const ukuranKiri = putar === null ? undefined : (1 + KECIL) / 2 - ((1 - KECIL) / 2) * kPutar; // bawaan: KECIL
+  const ukuranKanan = putar === null ? undefined : (1 + KECIL) / 2 + ((1 - KECIL) / 2) * kPutar; // bawaan: 1
+  const pupilKiri = putar === null ? undefined : 0.96 - 0.04 * kPutar; // bawaan 0.92
+  const pupilKanan = putar === null ? undefined : 0.96 + 0.04 * kPutar; // bawaan 1
   const fy = kepalaY + R * 0.1;
   const ex = R * 0.31;
   const ey = fy - R * 0.08;
   const [lx, ly] = s.lihat;
   const e = s.ekspresi;
   const buka = e.buka * kedip;
-  const Mata = ({ cx, kecil }: { cx: number; kecil?: boolean }) => {
-    const rx = R * (kecil ? 0.115 : 0.13);
+  const Mata = ({ cx, kecil, skala, skalaPupil, sisi }: { cx: number; kecil?: boolean; skala?: number; skalaPupil?: number; sisi?: 'k' | 'b' }) => {
+    // id clipPath unik per mata (jalur lama: dari `kecil`; jalur putar: dari `sisi`)
+    const idKlip = `m${uid}${sisi ?? (kecil ? 'k' : 'b')}`;
+    const rx = R * (skala !== undefined ? 0.13 * skala : kecil ? 0.115 : 0.13);
     const ry = R * 0.165 * Math.max(0.06, buka);
-    const pr = R * 0.085 * e.pupil * (kecil ? 0.92 : 1);
+    const pr = R * 0.085 * e.pupil * (skalaPupil !== undefined ? skalaPupil : kecil ? 0.92 : 1);
     return buka < 0.15 ? (
       <path d={`M ${cx - rx} ${ey} Q ${cx} ${ey + R * 0.05} ${cx + rx} ${ey}`} stroke={GARIS} strokeWidth={TEBAL} fill="none" strokeLinecap="round" />
     ) : (
       <g>
         <ellipse cx={cx} cy={ey} rx={rx} ry={ry} fill="#fff" stroke={GARIS} strokeWidth={TEBAL * 0.8} />
-        <clipPath id={`m${uid}${kecil ? 'k' : 'b'}`}>
+        <clipPath id={idKlip}>
           <ellipse cx={cx} cy={ey} rx={rx} ry={ry} />
         </clipPath>
-        <g clipPath={`url(#m${uid}${kecil ? 'k' : 'b'})`}>
+        <g clipPath={`url(#${idKlip})`}>
           <circle cx={cx + lx * rx * 0.42} cy={ey + ly * ry * 0.4} r={pr} fill="#2a2320" />
           <circle cx={cx + lx * rx * 0.42 + pr * 0.35} cy={ey + ly * ry * 0.4 - pr * 0.4} r={pr * 0.32} fill="#fff" />
           {/* kelopak atas (mata tenang/sedih tampak sayu) */}
@@ -241,7 +264,7 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
   };
   const mulutBuka = Math.min(1, Math.max(e.mulut, s.bicara * 0.95));
   const Mulut = () => {
-    const mx = fx + R * 0.02;
+    const mx = putar === null ? fx + R * 0.02 : fx + R * 0.02 * Math.max(-1.3, Math.min(1.3, kPutar));
     const my = fy + R * 0.4;
     const lebar = R * (e.bulat ? 0.18 : 0.32) * (1 - mulutBuka * 0.15);
     const c = e.senyum * R * 0.12;
@@ -431,7 +454,14 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
         ) : null}
         {/* kepala */}
         <g transform={`rotate(${kepalaMiring} 0 ${leherY})`}>
-          {!hijab ? <ellipse cx={-R * 0.72} cy={kepalaY + R * 0.12} rx={R * 0.16} ry={R * 0.2} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} /> : null}
+          {!hijab && putar === null ? <ellipse cx={-R * 0.72} cy={kepalaY + R * 0.12} rx={R * 0.16} ry={R * 0.2} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} /> : null}
+          {!hijab && putar !== null ? (
+            <>
+              {/* telinga ikut berputar: sisi belakang kepala berpindah saat menoleh */}
+              {kPutar > -0.3 ? <ellipse cx={-R * (0.93 - 0.21 * Math.max(0, Math.min(1, kPutar)))} cy={kepalaY + R * 0.12} rx={R * 0.16} ry={R * 0.2} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} /> : null}
+              {kPutar < 0.3 ? <ellipse cx={R * (0.93 - 0.21 * Math.max(0, Math.min(1, -kPutar)))} cy={kepalaY + R * 0.12} rx={R * 0.16} ry={R * 0.2} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} /> : null}
+            </>
+          ) : null}
           <circle cx={0} cy={kepalaY} r={R} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} />
           <clipPath id={`k${uid}`}>
             <circle cx={0} cy={kepalaY} r={R} />
@@ -440,16 +470,24 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
             <circle cx={-R * 0.55} cy={kepalaY + R * 0.1} r={R * 0.9} fill={gelap(w.kulit, 0.1)} opacity={0.5} />
           </g>
           <circle cx={0} cy={kepalaY} r={R} fill="none" stroke={GARIS} strokeWidth={TEBAL} />
-          <Rambut />
+          {putar === null ? <Rambut /> : <g transform={`translate(${(fx - R * 0.14) * 0.45} 0)`}><Rambut /></g>}
           <Jenggot />
           {/* pipi */}
-          <ellipse cx={fx - ex - R * 0.08} cy={fy + R * 0.2} rx={R * 0.13} ry={R * 0.08} fill="#f07a8a" opacity={e.pipi * 0.6} />
-          <ellipse cx={fx + ex + R * 0.04} cy={fy + R * 0.2} rx={R * 0.11} ry={R * 0.07} fill="#f07a8a" opacity={e.pipi * 0.6} />
-          <Mata cx={fx - ex} kecil />
-          <Mata cx={fx + ex * 0.92} />
-          <Alis cx={fx - ex} kiri />
-          <Alis cx={fx + ex * 0.92} kiri={false} />
-          <path d={`M ${fx + R * 0.06} ${fy + R * 0.08} q ${R * 0.08} ${R * 0.1} ${-R * 0.02} ${R * 0.15}`} stroke={gelap(w.kulit, 0.35)} strokeWidth={TEBAL * 0.8} fill="none" strokeLinecap="round" />
+          <ellipse cx={fx - ex * jarakKiri - R * 0.08} cy={fy + R * 0.2} rx={R * 0.13} ry={R * 0.08} fill="#f07a8a" opacity={e.pipi * 0.6} />
+          <ellipse cx={fx + ex * (jarakKanan + 0.08) + R * 0.04} cy={fy + R * 0.2} rx={R * 0.11} ry={R * 0.07} fill="#f07a8a" opacity={e.pipi * 0.6} />
+          {putar === null ? <Mata cx={fx - ex} kecil /> : <Mata cx={fx - ex * jarakKiri} skala={ukuranKiri} skalaPupil={pupilKiri} sisi="k" />}
+          {putar === null ? <Mata cx={fx + ex * 0.92} /> : <Mata cx={fx + ex * jarakKanan} skala={ukuranKanan} skalaPupil={pupilKanan} sisi="b" />}
+          <Alis cx={fx - ex * jarakKiri} kiri />
+          <Alis cx={fx + ex * jarakKanan} kiri={false} />
+          {putar === null ? (
+            <path d={`M ${fx + R * 0.06} ${fy + R * 0.08} q ${R * 0.08} ${R * 0.1} ${-R * 0.02} ${R * 0.15}`} stroke={gelap(w.kulit, 0.35)} strokeWidth={TEBAL * 0.8} fill="none" strokeLinecap="round" />
+          ) : (
+            (() => {
+              // hidung: arah lengkung mengikuti arah wajah; menghadap kamera → lengkung kecil simetris
+              const k = Math.max(-1, Math.min(1, kPutar));
+              return <path d={`M ${fx + R * 0.06 * k} ${fy + R * 0.08} q ${R * 0.08 * k} ${R * 0.1} ${-R * 0.02 * k} ${R * 0.15}`} stroke={gelap(w.kulit, 0.35)} strokeWidth={TEBAL * 0.8} fill="none" strokeLinecap="round" />;
+            })()
+          )}
           <Mulut />
           <Hijab />
           <Kopiah />

@@ -107,7 +107,7 @@ export const REGISTRI_AKSI: Record<JenisAksi, DefinisiAksi> = {
   'turn-head': {
     jenis: 'turn-head',
     deskripsi: 'Menoleh ke kiri/kanan/tengah, opsional arah mata & ekspresi, opsional kembali.',
-    tersedia: false,
+    tersedia: true, // Phase 2B
     durasiMin: 0.3,
     punyaGambarBawaan: true,
     bagian: () => ['kepala'],
