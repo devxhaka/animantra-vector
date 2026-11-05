@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "studio": "node studio.mjs server",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/uji.ts",
+    "build:studio": "node scripts/build-studio.mjs"
   },
   "dependencies": {
     "@fontsource/archivo-black": "5.3.0",

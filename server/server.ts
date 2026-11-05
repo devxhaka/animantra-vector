@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { DIR, HOST, MODE_PRATINJAU, PORT, ROOT, URL_STUDIO } from './jalur';
 import * as S from './store';
-import { FORMATS, SUARA } from '../shared/formats';
+import { FORMATS, SUARA, formatBertokoh } from '../shared/formats';
 import type { FormBaru, Gaya, Job } from '../shared/tipe';
 import { azureSiap, daftarSuaraAzure, ttsAzure } from './azure';
 import { SUARA_EDGE, edgeSiap, ttsEdge } from './edge';
@@ -207,7 +207,7 @@ app.post('/api/jobs', (req, res) => {
     suara: String(b.suara || (edgeSiap() ? 'edge:id-ID-GadisNeural' : azureSiap() ? 'azure:id-ID-GadisNeural' : elevenSiap() ? 'elevenlabs:EXAVITQu4vr4xnSDxMaL' : 'gemini:Kore')),
     musik: String(b.musik || 'otomatis'),
     gayaId: String(b.gayaId || S.gayaAktifId()),
-    ...(b.format === 'cerita'
+    ...(formatBertokoh(b.format)
       ? {
           pemeran: Array.isArray(b.pemeran) ? b.pemeran.map(String) : [],
           sudut: ['pov', 'dialog', 'narator'].includes(b.sudut) ? b.sudut : 'dialog',
@@ -216,7 +216,7 @@ app.post('/api/jobs', (req, res) => {
         }
       : {}),
   };
-  if (form.format === 'cerita' && !form.pemeran?.length) return res.status(400).json({ galat: 'Pilih minimal satu pemeran' });
+  if (formatBertokoh(form.format) && !form.pemeran?.length) return res.status(400).json({ galat: 'Pilih minimal satu pemeran' });
   if (!form.topik) return res.status(400).json({ galat: 'Topik belum diisi' });
   const j = S.buatJob('baru', form);
   bangunkan();

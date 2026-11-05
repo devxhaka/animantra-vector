@@ -1,0 +1,51 @@
+{
+  "id": "mystery-files",
+  "nama": "Mystery Files",
+  "seri": "MYSTERY FILES",
+  "warna": {
+    "latar": "#0B1D2A",
+    "lantai": "#08131C",
+    "teks": "#E6D9B8",
+    "merek": "#2E7D8C",
+    "sorot": "#F5B24C",
+    "teksSorot": "#08131C",
+    "label": "#142A38",
+    "teksLabel": "#E6D9B8",
+    "permukaan": "#142A38",
+    "peringatan": "#C85D55"
+  },
+  "gelap": true,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 4,
+    "label": "kotak",
+    "outline": 2,
+    "bayangan": false
+  },
+  "teks": {
+    "huruf": "montserrat",
+    "ukuran": 56,
+    "kapital": false,
+    "warna": "#E6D9B8",
+    "garis": {
+      "warna": "#08131C",
+      "tebal": 8
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.82,
+    "kataPerBaris": 4,
+    "mode": "karaoke",
+    "efek": "warna",
+    "warnaSorot": "#F5B24C",
+    "warnaTeksSorot": "#08131C",
+    "kataKunci": "warna",
+    "warnaKunci": "#2E7D8C",
+    "masuk": "fade"
+  },
+  "logo": null
+}

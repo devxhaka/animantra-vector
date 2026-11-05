@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { skemaSpec } from './skema';
 import { DIR } from '../server/jalur';
+import { formatMisteri } from '../shared/formats';
 
 /** Validasi spec.json + keberadaan berkas. Cetak masalah dalam bahasa yang bisa langsung diperbaiki. */
 export function cekSpec(dir: string): boolean {
@@ -47,6 +48,7 @@ export function cekSpec(dir: string): boolean {
   if (spec.musik?.file && !ada(spec.musik.file)) masalah.push(`musik tidak ada: ${spec.musik.file}`);
   if (spec.judulSorot && spec.judul && !spec.judul.includes(spec.judulSorot)) masalah.push('judulSorot harus potongan persis dari judul');
   if (!fs.existsSync(path.join(dir, 'caption.txt'))) saran.push('caption.txt belum ditulis');
+  if (formatMisteri(spec.format)) masalah.push(...cekRisetMisteri(dir));
 
   const total = (spec.adegan ?? []).reduce((s: number, a: any) => s + (a.durasi ?? 0), 0);
   console.log(`Spec: ${spec.adegan?.length ?? 0} adegan · total ${total.toFixed(1)} dtk`);
@@ -54,4 +56,33 @@ export function cekSpec(dir: string): boolean {
   for (const s of saran) console.log('  ! ' + s);
   if (!masalah.length) console.log('✓ Spec valid');
   return masalah.length === 0;
+}
+
+/** Bagian wajib riset.md untuk Mystery Files (lihat panduan/mystery-storytelling.md). */
+export const BAGIAN_RISET_MISTERI = [
+  { kunci: /fakta/i, nama: 'Fakta terverifikasi' },
+  { kunci: /hipotesis/i, nama: 'Hipotesis' },
+  { kunci: /legenda/i, nama: 'Legenda' },
+  { kunci: /spekulasi/i, nama: 'Spekulasi' },
+  { kunci: /tidak diketahui/i, nama: 'Tidak diketahui' },
+  { kunci: /sumber/i, nama: 'Sumber' },
+];
+
+/** Kembalikan daftar masalah riset.md untuk format mystery (kosong = lolos). */
+export function cekRisetMisteri(dir: string): string[] {
+  const f = path.join(dir, 'riset.md');
+  if (!fs.existsSync(f)) return ['riset.md wajib ada untuk Mystery Files (lihat panduan/mystery-storytelling.md)'];
+  const isi = fs.readFileSync(f, 'utf8');
+  const judul = isi.split(/\r?\n/).filter((b) => /^#{1,3}\s/.test(b));
+  const masalah: string[] = [];
+  for (const b of BAGIAN_RISET_MISTERI) if (!judul.some((j) => b.kunci.test(j))) masalah.push(`riset.md: bagian "## ${b.nama}" belum ada`);
+  // bagian Sumber harus berisi minimal satu butir/tautan
+  const iSumber = isi.search(/^#{1,3}\s.*sumber/im);
+  if (iSumber >= 0) {
+    const sisa = isi.slice(iSumber).split(/\r?\n/).slice(1);
+    const akhir = sisa.findIndex((b) => /^#{1,3}\s/.test(b));
+    const badan = (akhir >= 0 ? sisa.slice(0, akhir) : sisa).filter((b) => /^\s*([-*]|\d+\.)\s+\S/.test(b) || /https?:\/\//.test(b));
+    if (!badan.length) masalah.push('riset.md: bagian Sumber belum berisi sumber (butir atau tautan)');
+  }
+  return masalah;
 }

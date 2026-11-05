@@ -18,6 +18,14 @@ export const FORMATS: FormatDef[] = [
       'Cerita animasi dengan pemeran dari pesanan. Satu adegan = satu baris dialog/narasi (isi "pembicara"). Bangun 3 babak: pembuka (situasi + rasa penasaran) → konflik/ketegangan → resolusi + pesan. Pakai latar, suasana, dan bahasa kamera (lebar → dekat). Ikuti "sudut" (pov/dialog/narator) dan "nuansa" pesanan. Lihat panduan/cerita.md.',
   },
   {
+    kunci: 'mystery-story',
+    nama: 'Mystery Storytelling',
+    deskripsi: 'Kasus misteri sinematik',
+    seri: 'MYSTERY FILES',
+    panduan:
+      'Kisah misteri sinematik dibawakan pemeran (biasanya Agent Morgan) + narator. 5 babak: HOOK (pertanyaan/kejanggalan, ≤5 dtk) → SETUP (tempat, waktu, tokoh asli) → INVESTIGATION (bukti satu per satu) → REVELATION (apa yang diketahui vs belum) → CLOSING (pertanyaan terbuka + ajakan). Bedakan fakta terverifikasi, hipotesis, legenda, spekulasi, dan yang tidak diketahui; jangan pernah menyajikan spekulasi sebagai fakta. Wajib riset.md bersumber. Baca panduan/mystery-files.md.',
+  },
+  {
     kunci: 'tur-lingkungan',
     nama: 'Tur Lingkungan',
     deskripsi: 'Beberapa benda, satu tempat',
@@ -100,6 +108,11 @@ export const FORMATS: FormatDef[] = [
 ];
 
 export const formatDari = (kunci: string) => FORMATS.find((f) => f.kunci === kunci) ?? FORMATS[0];
+
+/** Format yang memakai pemeran/tokoh (pipeline Cerita): isian pemeran, suara per tokoh, dst. */
+export const FORMAT_BERTOKOH = ['cerita', 'mystery-story'];
+export const formatBertokoh = (kunci: string | undefined) => !!kunci && FORMAT_BERTOKOH.includes(kunci);
+export const formatMisteri = (kunci: string | undefined) => kunci === 'mystery-story';
 
 export const SUARA = [
   { nama: 'Kore', ket: 'Perempuan, tegas' },

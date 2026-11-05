@@ -11,6 +11,7 @@ export const PAKAIAN_PILIHAN: { kunci: Karakter['pakaian']; nama: string; untuk:
   { kunci: 'jubah-sorban', nama: 'Jubah + sorban', untuk: 'laki' },
   { kunci: 'kasual', nama: 'Kaos & celana', untuk: 'semua' },
   { kunci: 'kemeja', nama: 'Kemeja & celana', untuk: 'semua' },
+  { kunci: 'jaket-detektif', nama: 'Jaket detektif + kemeja dalam', untuk: 'semua' },
 ];
 
 export const KARAKTER_CONTOH: Karakter[] = [
@@ -35,5 +36,20 @@ export const KARAKTER_CONTOH: Karakter[] = [
     suara: 'edge:id-ID-ArdiNeural',
   },
 ];
+
+/** Tokoh tetap seri Mystery Files. Di-seed sekali ke data/karakter/morgan.json. */
+export const AGENT_MORGAN: Karakter = {
+  id: 'morgan',
+  nama: 'Agent Morgan',
+  peran:
+    'Penyelidik muda (sekitar 27 tahun), pembawa acara seri Mystery Files. Penasaran, analitis, tenang, sedikit jenaka. Bicara jelas dan hati-hati: selalu membedakan fakta, dugaan, dan legenda.',
+  jenis: 'laki',
+  usia: 'dewasa',
+  pakaian: 'jaket-detektif',
+  rambut: 'berantakan',
+  aksesori: ['kerah-tinggi', 'lencana', 'buku-catatan', 'senter-sabuk'],
+  warna: { kulit: '#e0b48c', rambut: '#14110f', atasan: '#1c3346', bawahan: '#1a222b', penutup: '#14110f', sepatu: '#2a211c', dalam: '#111111' },
+  suara: 'edge:id-ID-ArdiNeural',
+};
 
 export const KARAKTER_CADANGAN: Karakter = { ...KARAKTER_CONTOH[1], id: 'tokoh', nama: 'Tokoh', peran: '' };

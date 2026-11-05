@@ -17,6 +17,8 @@ const NAMA_WARNA: Record<keyof Gaya['warna'], string> = {
   teksSorot: 'Teks di sorot',
   label: 'Label',
   teksLabel: 'Teks label',
+  permukaan: 'Panel bukti',
+  peringatan: 'Peringatan',
 };
 
 export function HalamanGaya() {
@@ -167,7 +169,7 @@ export function HalamanGaya() {
             <summary>Atur warna satu per satu</summary>
             <div className="dua-kolom">
               {(Object.keys(NAMA_WARNA) as (keyof Gaya['warna'])[]).map((k) => (
-                <WarnaInput key={k} nama={NAMA_WARNA[k]} nilai={w[k]} onUbah={(v) => ubah((g) => (g.warna[k] = v))} />
+                <WarnaInput key={k} nama={NAMA_WARNA[k]} nilai={w[k] ?? (k === 'peringatan' ? w.merek : w.label)} onUbah={(v) => ubah((g) => (g.warna[k] = v))} />
               ))}
             </div>
           </details>

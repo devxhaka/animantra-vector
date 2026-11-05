@@ -16,6 +16,9 @@ export type Gaya = {
     teksSorot: string; // teks di atas kotak sorot
     label: string; // latar label panah
     teksLabel: string;
+    /** opsional (Mystery Files): warna peringatan/alert & permukaan panel. Fallback: merek & label. */
+    peringatan?: string;
+    permukaan?: string;
   };
   gelap: boolean;
   huruf: KunciHuruf;
@@ -177,7 +180,10 @@ export type Adegan = {
 // ---------------- Karakter ----------------
 export type JenisKelamin = 'perempuan' | 'laki';
 export type Usia = 'anak' | 'remaja' | 'dewasa' | 'tua';
-export type Pakaian = 'hijab-gamis' | 'hijab-kasual' | 'rambut-panjang' | 'koko-kopiah' | 'kasual' | 'kemeja' | 'jubah-sorban';
+export type Pakaian = 'hijab-gamis' | 'hijab-kasual' | 'rambut-panjang' | 'koko-kopiah' | 'kasual' | 'kemeja' | 'jubah-sorban' | 'jaket-detektif';
+/** Gaya rambut opsional. Kosong = rambut bawaan sesuai pakaian (perilaku lama). */
+export type GayaRambut = 'rapi' | 'berantakan';
+export type Aksesori = 'lencana' | 'senter-sabuk' | 'buku-catatan' | 'kerah-tinggi';
 
 export type Karakter = {
   id: string; // huruf kecil, dipakai di spec, misal "kakak"
@@ -186,8 +192,10 @@ export type Karakter = {
   jenis: JenisKelamin;
   usia: Usia;
   pakaian: Pakaian;
-  warna: { kulit: string; rambut: string; atasan: string; bawahan: string; penutup: string; sepatu: string };
+  warna: { kulit: string; rambut: string; atasan: string; bawahan: string; penutup: string; sepatu: string; dalam?: string };
   suara: string; // "azure:id-ID-GadisNeural" dst.
+  rambut?: GayaRambut;
+  aksesori?: Aksesori[];
 };
 
 export const POSE = ['diam', 'menunjuk', 'melambai', 'berpikir', 'kaget', 'berdoa', 'tangan-di-dada', 'memeluk-diri', 'menenangkan', 'meraih', 'menjelaskan', 'jalan'] as const;

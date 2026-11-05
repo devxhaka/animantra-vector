@@ -1,7 +1,7 @@
 import React from 'react';
 import { api, suaraBisaDipakai, tanggal, usePolling, useOpsi, type Opsi } from '../api';
 import type { Gaya, Job, Karakter, VideoMeta } from '../../../shared/tipe';
-import { formatDari } from '../../../shared/formats';
+import { formatBertokoh, formatDari, formatMisteri } from '../../../shared/formats';
 import { KartuProgres } from '../komponen/KartuProgres';
 import { ModalVideo } from '../komponen/ModalVideo';
 import { PilihSuara } from '../komponen/PilihSuara';
@@ -98,15 +98,23 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
   });
   const [karakter, setKarakter] = React.useState<Karakter[]>([]);
   const [episode, setEpisode] = React.useState<VideoMeta[]>([]);
-  const cerita = form.format === 'cerita';
+  const cerita = formatBertokoh(form.format);
   React.useEffect(() => {
     if (!cerita) return;
     api.karakter().then((d) => {
       setKarakter(d);
-      setForm((f) => (f.pemeran.length ? f : { ...f, pemeran: d.slice(0, 2).map((k) => k.id), durasi: Math.max(f.durasi, 90) }));
+      setForm((f) => {
+        if (f.pemeran.length) return f;
+        // Mystery Files: bawaannya Agent Morgan saja, durasi 30–60 dtk. Cerita: dua tokoh pertama.
+        if (formatMisteri(f.format)) {
+          const morgan = d.find((k) => k.id === 'morgan');
+          return { ...f, pemeran: morgan ? [morgan.id] : d.slice(0, 1).map((k) => k.id), durasi: Math.min(Math.max(f.durasi, 30), 60) };
+        }
+        return { ...f, pemeran: d.slice(0, 2).map((k) => k.id), durasi: Math.max(f.durasi, 90) };
+      });
     });
-    api.videos().then((v) => setEpisode(v.filter((x) => x.format === 'cerita')));
-  }, [cerita]);
+    api.videos().then((v) => setEpisode(v.filter((x) => x.format === form.format)));
+  }, [cerita, form.format]);
   const [kirim, setKirim] = React.useState<'diam' | 'kirim' | 'ok'>('diam');
   const [galat, setGalat] = React.useState('');
 

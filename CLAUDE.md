@@ -49,6 +49,12 @@ Kalau `format.kunci` = `cerita`, **baca `panduan/cerita.md` dulu**. Tokoh dirend
 `pemeran` (jangan digambar); kamu menulis skenario per baris ucapan, menggambar/memakai ulang latar,
 dan mengarahkan pose/ekspresi/kamera/suasana. Tahap `model` = tokoh & latar.
 
+### Format Mystery Storytelling (`mystery-story`)
+Pipeline sama dengan Cerita. **Baca `panduan/mystery-files.md` dan `panduan/mystery-storytelling.md` dulu.**
+Wajib `riset.md` dengan 5 kategori (fakta terverifikasi, hipotesis, legenda, spekulasi, tidak diketahui)
+ditambah Sumber; `cek` menolak tanpa itu. Jangan menyajikan spekulasi sebagai fakta dan jangan mengarang kutipan.
+Agent Morgan: `panduan/mystery-character.md`.
+
 ### Naskah
 - Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook pertanyaan di 3 detik pertama.
 - ±2,5 kata per detik bicara. Satu adegan = satu ide, 6–16 kata, durasi 2,5–7 detik.

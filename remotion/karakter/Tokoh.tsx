@@ -115,6 +115,9 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
   const panjang = k.pakaian === 'hijab-gamis' || k.pakaian === 'jubah-sorban'; // pakaian sampai mata kaki
   const lenganPendek = k.pakaian === 'kasual';
   const hijab = k.pakaian.startsWith('hijab');
+  const jaket = k.pakaian === 'jaket-detektif';
+  const aks = new Set(k.aksesori ?? []);
+  const warnaDalam = w.dalam ?? '#141414';
 
   // titik-titik tubuh
   const kepalaY = -(H - R);
@@ -191,7 +194,7 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
 
   // badan
   const atasBadan = bahuY;
-  const bawahBadan = panjang ? -26 : k.pakaian === 'hijab-kasual' || k.pakaian === 'rambut-panjang' ? pinggulY + R * 0.75 : pinggulY + R * 0.28;
+  const bawahBadan = panjang ? -26 : jaket ? pinggulY + R * 0.62 : k.pakaian === 'hijab-kasual' || k.pakaian === 'rambut-panjang' ? pinggulY + R * 0.75 : pinggulY + R * 0.28;
   const lebarBawah = panjang ? lebarBadan * 1.22 : lebarBadan * 1.04;
   const pathBadan = `M ${-lebarBadan / 2} ${atasBadan + R * 0.25}
     Q ${-lebarBadan / 2} ${atasBadan} ${-lebarBadan / 2 + R * 0.3} ${atasBadan}
@@ -270,6 +273,29 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
           <path d={`M ${-R * 0.5} ${kepalaY - R * 0.85} Q ${R * 0.1} ${kepalaY - R * 1.0} ${R * 0.6} ${kepalaY - R * 0.82}`} stroke={terang(w.rambut, 0.35)} strokeWidth={8} fill="none" strokeLinecap="round" />
         </g>
       );
+    if (k.rambut === 'berantakan') {
+      // rambut pendek berantakan: topi rambut + jambul runcing. Garis tepi digambar dulu (2×) lalu isi,
+      // supaya sambungan jambul dan rambut tidak bergaris.
+      const P = (pts: [number, number][]) => 'M ' + pts.map(([x, y]) => `${x * R} ${kepalaY + y * R}`).join(' L ') + ' Z';
+      const bentuk = [
+        `M ${-R * 1.0} ${kepalaY + R * 0.05} Q ${-R * 1.05} ${kepalaY - R * 1.05} ${R * 0.1} ${kepalaY - R * 1.04} Q ${R * 1.0} ${kepalaY - R * 0.98} ${R * 0.96} ${kepalaY - R * 0.28} L ${R * 0.62} ${kepalaY - R * 0.42} L ${R * 0.4} ${kepalaY - R * 0.3} L ${R * 0.05} ${kepalaY - R * 0.5} L ${-R * 0.45} ${kepalaY - R * 0.4} Q ${-R * 0.7} ${kepalaY - R * 0.2} ${-R * 1.0} ${kepalaY + R * 0.05} Z`,
+        P([[-0.78, -0.72], [-1.08, -1.02], [-0.5, -0.95]]),
+        P([[-0.48, -0.92], [-0.42, -1.34], [-0.05, -1.02]]),
+        P([[-0.08, -1.02], [0.22, -1.36], [0.36, -0.98]]),
+        P([[0.3, -0.98], [0.82, -1.16], [0.64, -0.78]]),
+        P([[0.62, -0.62], [1.06, -0.52], [0.8, -0.34]]),
+        P([[0.22, -0.56], [0.42, -0.18], [0.04, -0.44]]),
+      ];
+      return (
+        <g>
+          <g fill={w.rambut} stroke={GARIS} strokeWidth={TEBAL * 2} strokeLinejoin="round">
+            {bentuk.map((d, i) => <path key={i} d={d} />)}
+          </g>
+          <g fill={w.rambut}>{bentuk.map((d, i) => <path key={i} d={d} />)}</g>
+          <path d={`M ${-R * 0.42} ${kepalaY - R * 0.78} Q ${-R * 0.1} ${kepalaY - R * 0.92} ${R * 0.22} ${kepalaY - R * 0.84}`} stroke={terang(w.rambut, 0.22)} strokeWidth={5} fill="none" strokeLinecap="round" opacity={0.7} />
+        </g>
+      );
+    }
     return (
       <g>
         <path
@@ -351,6 +377,20 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
             <rect x={-lebarBawah} y={atasBadan} width={lebarBawah * 0.68} height={bawahBadan - atasBadan} fill={gelap(w.atasan, 0.2)} />
             <rect x={lebarBadan * 0.22} y={atasBadan + 14} width={14} height={(bawahBadan - atasBadan) * 0.7} rx={7} fill={terang(w.atasan, 0.3)} />
             {k.pakaian === 'koko-kopiah' ? <path d={`M ${R * 0.08} ${atasBadan} V ${pinggulY}`} stroke={gelap(w.atasan, 0.35)} strokeWidth={6} /> : null}
+            {jaket ? (
+              <>
+                {/* kemeja dalam (V) */}
+                <path d={`M ${-R * 0.3} ${atasBadan} L ${R * 0.36} ${atasBadan} L ${R * 0.06} ${atasBadan + R * 1.0} Z`} fill={warnaDalam} />
+                {/* kerah jaket (lapel) */}
+                <path d={`M ${-R * 0.34} ${atasBadan - 2} L ${R * 0.04} ${atasBadan + R * 1.0} L ${-R * 0.18} ${atasBadan + R * 1.02} L ${-R * 0.56} ${atasBadan + R * 0.42} Z`} fill={terang(w.atasan, 0.12)} stroke={GARIS} strokeWidth={TEBAL * 0.8} strokeLinejoin="round" />
+                <path d={`M ${R * 0.4} ${atasBadan - 2} L ${R * 0.08} ${atasBadan + R * 1.0} L ${R * 0.3} ${atasBadan + R * 1.02} L ${R * 0.62} ${atasBadan + R * 0.42} Z`} fill={terang(w.atasan, 0.18)} stroke={GARIS} strokeWidth={TEBAL * 0.8} strokeLinejoin="round" />
+                {/* kancing & saku */}
+                <circle cx={R * 0.1} cy={atasBadan + R * 1.18} r={R * 0.055} fill={gelap(w.atasan, 0.45)} />
+                <circle cx={R * 0.1} cy={atasBadan + R * 1.45} r={R * 0.055} fill={gelap(w.atasan, 0.45)} />
+                <path d={`M ${R * 0.2} ${pinggulY + R * 0.2} h ${R * 0.42}`} stroke={gelap(w.atasan, 0.4)} strokeWidth={6} strokeLinecap="round" />
+                <path d={`M ${-R * 0.62} ${atasBadan + R * 0.62} h ${R * 0.34}`} stroke={gelap(w.atasan, 0.4)} strokeWidth={5} strokeLinecap="round" />
+              </>
+            ) : null}
             {k.pakaian === 'kemeja' ? (
               <>
                 <path d={`M ${R * 0.05} ${atasBadan} V ${bawahBadan}`} stroke={gelap(w.atasan, 0.35)} strokeWidth={5} />
@@ -359,9 +399,36 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
             ) : null}
           </g>
           <path d={pathBadan} fill="none" stroke={GARIS} strokeWidth={TEBAL} strokeLinejoin="round" />
+          {aks.has('buku-catatan') ? (
+            <g>
+              <rect x={-R * 0.6} y={atasBadan + R * 0.38} width={R * 0.26} height={R * 0.32} rx={3} fill="#c9b48a" stroke={GARIS} strokeWidth={TEBAL * 0.7} transform={`rotate(-6 ${-R * 0.47} ${atasBadan + R * 0.5})`} />
+              <path d={`M ${-R * 0.66} ${atasBadan + R * 0.62} h ${R * 0.4}`} stroke={GARIS} strokeWidth={TEBAL * 0.8} />
+            </g>
+          ) : null}
+          {aks.has('lencana') ? (
+            <path
+              d={`M ${R * 0.42} ${atasBadan + R * 0.5} l ${R * 0.13} ${-R * 0.06} l ${R * 0.13} ${R * 0.06} v ${R * 0.14} q 0 ${R * 0.14} ${-R * 0.13} ${R * 0.2} q ${-R * 0.13} ${-R * 0.06} ${-R * 0.13} ${-R * 0.2} Z`}
+              fill="#d9b25a"
+              stroke={GARIS}
+              strokeWidth={TEBAL * 0.7}
+              strokeLinejoin="round"
+            />
+          ) : null}
+          {aks.has('senter-sabuk') ? (
+            <g transform={`rotate(-8 ${R * 0.62} ${pinggulY + R * 0.05})`}>
+              <rect x={R * 0.5} y={pinggulY - R * 0.1} width={R * 0.17} height={R * 0.5} rx={R * 0.05} fill="#3a3f46" stroke={GARIS} strokeWidth={TEBAL * 0.8} />
+              <rect x={R * 0.47} y={pinggulY + R * 0.34} width={R * 0.23} height={R * 0.12} rx={R * 0.04} fill="#9aa3ad" stroke={GARIS} strokeWidth={TEBAL * 0.8} />
+            </g>
+          ) : null}
         </g>
         {/* leher */}
         <rect x={-R * 0.2} y={leherY - R * 0.2} width={R * 0.42} height={R * 0.4} rx={R * 0.15} fill={gelap(w.kulit, 0.12)} stroke={GARIS} strokeWidth={TEBAL} />
+        {aks.has('kerah-tinggi') ? (
+          <g fill={terang(w.atasan, 0.08)} stroke={GARIS} strokeWidth={TEBAL} strokeLinejoin="round">
+            <path d={`M ${-R * 0.52} ${bahuY + R * 0.12} L ${-R * 0.42} ${leherY - R * 0.3} L ${-R * 0.12} ${leherY - R * 0.05} L ${-R * 0.16} ${bahuY + R * 0.2} Z`} />
+            <path d={`M ${R * 0.58} ${bahuY + R * 0.12} L ${R * 0.5} ${leherY - R * 0.32} L ${R * 0.2} ${leherY - R * 0.05} L ${R * 0.22} ${bahuY + R * 0.2} Z`} />
+          </g>
+        ) : null}
         {/* kepala */}
         <g transform={`rotate(${kepalaMiring} 0 ${leherY})`}>
           {!hijab ? <ellipse cx={-R * 0.72} cy={kepalaY + R * 0.12} rx={R * 0.16} ry={R * 0.2} fill={w.kulit} stroke={GARIS} strokeWidth={TEBAL} /> : null}

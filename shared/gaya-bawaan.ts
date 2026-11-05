@@ -26,6 +26,22 @@ export const PRESET_WARNA: PresetWarna[] = [
   p('Poster merah', '#f2ede6', '#e3dacd', '#161616', '#d62828', '#f7b538'),
   p('Malam', '#1d2128', '#151820', '#f4f1ea', '#f29e38', '#f6d365', '#111111', true),
   p('Neon', '#111317', '#0a0b0e', '#f4f4f4', '#18c3d6', '#c6ff3d', '#111111', true),
+  {
+    nama: 'Mystery Files',
+    gelap: true,
+    warna: {
+      latar: '#0B1D2A', // background
+      lantai: '#08131C', // deep navy
+      teks: '#E6D9B8', // text
+      merek: '#2E7D8C', // teal
+      sorot: '#F5B24C', // amber
+      teksSorot: '#08131C',
+      label: '#142A38', // surface
+      teksLabel: '#E6D9B8',
+      permukaan: '#142A38',
+      peringatan: '#C85D55', // alert
+    },
+  },
 ];
 
 /** Tampilan subtitle lama (dipakai bila gaya belum punya pengaturan teks). */
@@ -66,6 +82,10 @@ export const PRESET_TEKS: { nama: string; teks: GayaTeks }[] = [
   {
     nama: 'Muncul per kata',
     teks: { ...TEKS_KLASIK, huruf: 'lilita', ukuran: 70, garis: { warna: '#1d1d1f', tebal: 12 }, mode: 'muncul', efek: 'warna', warnaSorot: '#ffd84a', kataPerBaris: 3, masuk: 'pop' },
+  },
+  {
+    nama: 'Mystery Files',
+    teks: { ...TEKS_KLASIK, huruf: 'montserrat', ukuran: 56, warna: '#E6D9B8', garis: { warna: '#08131C', tebal: 8 }, bayangan: true, mode: 'karaoke', efek: 'warna', warnaSorot: '#F5B24C', warnaTeksSorot: '#08131C', kataKunci: 'warna', warnaKunci: '#2E7D8C', kataPerBaris: 4, posisi: 0.82, masuk: 'fade' },
   },
   {
     nama: 'Minimal',
@@ -129,3 +149,16 @@ export function rasioKontras(a: string, b: string) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 export const teksKontras = (bg: string) => (rasioKontras(bg, '#111111') >= rasioKontras(bg, '#ffffff') ? '#111111' : '#ffffff');
+
+/** Gaya lengkap Mystery Files (di-seed ke data/gaya/mystery-files.json bila belum ada). */
+export const GAYA_MYSTERY: Gaya = {
+  id: 'mystery-files',
+  nama: 'Mystery Files',
+  seri: 'MYSTERY FILES',
+  warna: PRESET_WARNA.find((x) => x.nama === 'Mystery Files')!.warna,
+  gelap: true,
+  huruf: 'tegas',
+  bentuk: { sudut: 4, label: 'kotak', outline: 2, bayangan: false },
+  teks: PRESET_TEKS.find((x) => x.nama === 'Mystery Files')!.teks,
+  logo: null,
+};

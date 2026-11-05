@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DIR, bacaJson, tulisJson } from './jalur';
 import { TAHAP, type FormBaru, type Gaya, type Job, type Karakter, type KunciTahap, type Spec, type VideoMeta } from '../shared/tipe';
-import { KARAKTER_CONTOH } from '../shared/karakter-bawaan';
-import { GAYA_BAWAAN } from '../shared/gaya-bawaan';
-import { formatDari } from '../shared/formats';
+import { AGENT_MORGAN, KARAKTER_CONTOH } from '../shared/karakter-bawaan';
+import { GAYA_BAWAAN, GAYA_MYSTERY } from '../shared/gaya-bawaan';
+import { formatBertokoh, formatDari } from '../shared/formats';
 
 const sekarang = () => new Date().toISOString();
 const idBaru = (awalan: string) => awalan + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -23,12 +23,23 @@ export function slugify(s: string) {
   );
 }
 
+/**
+ * Tulis data bawaan SEKALI: kalau sudah pernah di-seed (ada penanda) atau berkasnya sudah ada,
+ * tidak ditimpa. Jadi gaya/tokoh yang diubah atau dihapus pengguna tidak muncul kembali.
+ */
+function benihSekali(penanda: string, file: string, data: unknown) {
+  if (fs.existsSync(penanda)) return;
+  if (!fs.existsSync(file)) tulisJson(file, data);
+  fs.writeFileSync(penanda, '');
+}
+
 // ---------------- Gaya ----------------
 const fileGaya = (id: string) => path.join(DIR.gaya, `${id}.json`);
 const filePengaturan = path.join(DIR.data, 'pengaturan.json');
 
 export function daftarGaya(): Gaya[] {
   if (!fs.existsSync(fileGaya('bawaan'))) tulisJson(fileGaya('bawaan'), GAYA_BAWAAN);
+  benihSekali(path.join(DIR.gaya, '.seed-mystery-files'), fileGaya(GAYA_MYSTERY.id), GAYA_MYSTERY);
   return fs
     .readdirSync(DIR.gaya)
     .filter((f) => f.endsWith('.json'))
@@ -64,6 +75,7 @@ export function daftarKarakter(): Karakter[] {
     for (const k of KARAKTER_CONTOH) tulisJson(fileKarakter(k.id), k);
     fs.writeFileSync(path.join(DIR.karakter, '.awal'), '');
   }
+  benihSekali(path.join(DIR.karakter, '.seed-morgan'), fileKarakter(AGENT_MORGAN.id), AGENT_MORGAN);
   return fs
     .readdirSync(DIR.karakter)
     .filter((f) => f.endsWith('.json'))
@@ -210,7 +222,7 @@ export function siapkanFolder(j: Job) {
     tahapSelesai: Object.entries(j.tahap).filter(([, v]) => v === 'selesai').map(([k]) => k),
     gaya,
     logo,
-    ...(fmt.kunci === 'cerita' || pemeran.length
+    ...(formatBertokoh(fmt.kunci) || pemeran.length
       ? { pemeran, sudut: j.form.sudut ?? 'dialog', nuansa: j.form.nuansa ?? '', lanjutan, latarPustaka }
       : {}),
   };

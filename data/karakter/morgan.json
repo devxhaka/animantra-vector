@@ -1,0 +1,25 @@
+{
+  "id": "morgan",
+  "nama": "Agent Morgan",
+  "peran": "Penyelidik muda (sekitar 27 tahun), pembawa acara seri Mystery Files. Penasaran, analitis, tenang, sedikit jenaka. Bicara jelas dan hati-hati: selalu membedakan fakta, dugaan, dan legenda.",
+  "jenis": "laki",
+  "usia": "dewasa",
+  "pakaian": "jaket-detektif",
+  "rambut": "berantakan",
+  "aksesori": [
+    "kerah-tinggi",
+    "lencana",
+    "buku-catatan",
+    "senter-sabuk"
+  ],
+  "warna": {
+    "kulit": "#e0b48c",
+    "rambut": "#14110f",
+    "atasan": "#1c3346",
+    "bawahan": "#1a222b",
+    "penutup": "#14110f",
+    "sepatu": "#2a211c",
+    "dalam": "#111111"
+  },
+  "suara": "edge:id-ID-ArdiNeural"
+}

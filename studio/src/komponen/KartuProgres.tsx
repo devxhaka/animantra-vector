@@ -2,7 +2,7 @@ import React from 'react';
 import { api, suaraBisaDipakai, useOpsi } from '../api';
 import { PilihSuara } from './PilihSuara';
 import { TAHAP, type Job } from '../../../shared/tipe';
-import { formatDari } from '../../../shared/formats';
+import { formatBertokoh, formatDari } from '../../../shared/formats';
 
 const STATUS: Record<Job['status'], string> = {
   antre: 'menunggu Claude',
@@ -27,7 +27,7 @@ export function KartuProgres({ job, terhubung, onBerubah }: { job: Job; terhubun
   const persenTotal = job.persen != null ? job.persen : Math.round((selesaiN / TAHAP.length) * 100);
   const log = [...job.log].reverse();
   const berakhir = job.status === 'gagal' || job.status === 'dibatalkan';
-  const labelTahap = (k: string, l: string) => (job.form.format === 'cerita' && k === 'model' ? 'Tokoh & latar' : l);
+  const labelTahap = (k: string, l: string) => (formatBertokoh(job.form.format) && k === 'model' ? 'Tokoh & latar' : l);
 
   return (
     <div className={'panel kartu-progres' + (berakhir ? ' berakhir' : '')}>

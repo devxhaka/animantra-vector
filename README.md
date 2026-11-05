@@ -43,6 +43,11 @@ Render pertama akan mengunduh Chrome Headless milik Remotion secara otomatis (±
 7. Tab **Gaya Saya** untuk mengatur warna, huruf, bentuk, nama seri, dan logo. Klik
    **Simpan & pakai**, maka gaya itu otomatis dipakai di video berikutnya.
 
+### Mystery Files (format **Mystery Storytelling**)
+Video misteri sinematik dengan tokoh tetap **Agent Morgan** dan gaya gelap teal/amber "Mystery Files".
+Setiap episode wajib riset bersumber yang memisahkan fakta, hipotesis, legenda, spekulasi, dan hal yang
+belum diketahui. Lihat `panduan/mystery-files.md`.
+
 ### Mengatur teks karaoke (subtitle)
 Tab **Gaya Saya → Teks karaoke**: pilih contoh (Klasik, Karaoke warna, Stabilo, Kotak CapCut,
 Pop besar, Muncul per kata, Minimal) lalu atur sendiri:
