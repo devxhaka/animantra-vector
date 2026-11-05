@@ -13,6 +13,7 @@ import {
 } from 'remotion';
 import type { Adegan, Aset, Gaya, Keyframe, Label, Spec } from '../shared/tipe';
 import { huruf, hurufMono, hurufTeks } from './huruf';
+import { BerkasCtx, useBerkas } from './berkas';
 import { formatDari } from '../shared/formats';
 import { TEKS_KLASIK, teksKontras } from '../shared/gaya-bawaan';
 import { LapisanSuasana, TokohAdeganView, cariKarakter, guncangan, keadaanAkhir, type KeadaanAkhir } from './cerita';
@@ -23,8 +24,6 @@ export type PropsVideo = {
   basis?: string;
 };
 
-const BerkasCtx = React.createContext<(p: string) => string>((p) => staticFile(p));
-const useBerkas = () => React.useContext(BerkasCtx);
 const GayaCtx = React.createContext<Gaya | null>(null);
 const useGaya = () => React.useContext(GayaCtx)!;
 

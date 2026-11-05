@@ -7,7 +7,7 @@ tambahan yang menimpa bagian tubuh tertentu selama aksi berjalan. Tidak ada rend
 | Aksi | Bagian tubuh | Status | Bila belum tersedia / disederhanakan |
 |---|---|---|---|
 | `turn-head` | kepala | **tersedia** (Phase 2B) | arah mata (+ ekspresi) saja; kepala tidak berputar |
-| `flashlight-sweep` | lengan `dep`/`bel` | belum (Phase 2C) | pose `menunjuk` (selalu tangan depan); TANPA senter/sinar/gerak menyapu |
+| `flashlight-sweep` | lengan `dep`/`bel` | **tersedia** (Phase 2C) | pose `menunjuk` (selalu tangan depan); TANPA senter/sinar/gerak menyapu |
 | `open-object` | lengan `dep`/`bel` | belum (Phase 2D) | pose `meraih` → `berpikir`; benda TIDAK digambar & TIDAK terbuka |
 
 ## Data (semua opsional, waktu dalam DETIK relatif awal adegan)
@@ -49,6 +49,30 @@ Contoh akting:
 - Bicara langsung ke penonton: `arah: "tengah"`, `kembali: false`.
 - Kaget menoleh: durasi pendek (0,6–0,8 dtk) + `ekspresi: "kaget"`.
 
+## `flashlight-sweep`
+| Field | Wajib | Nilai | Keterangan |
+|---|---|---|---|
+| `dari`, `ke` | ya | `kiri`/`kanan`/`atas`/`bawah` atau `{x, y}` | arah **layar**; `{x,y}` = titik di layar (0..1) yang dibidik tepat |
+| `mulai`, `durasi` | ya | detik | durasi minimum wajar 0,6 dtk |
+| `tangan` | tidak | `dep` (bawaan) / `bel` | lengan depan atau belakang |
+| `sinar` | tidak | bawaan `true` | `false` = senter dipegang tanpa sinar |
+| `aset` | tidak | path SVG | senter kustom (relatif folder video). Hilang/gagal dimuat → senter bawaan + peringatan |
+
+Timeline: angkat (transisi masuk) → **menyapu** dari `dari` ke `ke` pada 15–85% durasi → tahan → turun.
+- Senter dipegang di ujung lengan bawah dan **sinar memakai rantai transform yang sama**, jadi arah sinar
+  selalu sama dengan arah senter. Target `{x,y}` dibidik dari **tangan**, jadi sinar benar-benar mengenai titik itu.
+- Arti arah untuk tokoh menghadap kanan: `kanan` = depan, `kiri` = belakang (lengan terayun ke belakang),
+  `atas` = ke atas sedikit ke depan, `bawah` = ke bawah sedikit ke depan. Menghadap kiri: dicerminkan.
+- Sapuan depan ↔ belakang (tepat 180°) lewat **atas** kepala.
+- Rig tidak punya pergelangan: membidik tinggi berarti seluruh lengan bawah ikut naik.
+- Sinar belum "menembus gelap" (`suasana.gelap` digambar di atas tokoh sehingga ikut meredupkan sinar).
+  Pencahayaan senter yang menerangi latar adalah bagian Phase 3.
+
+Contoh:
+```json
+{ "jenis": "flashlight-sweep", "mulai": 0.4, "durasi": 2.6, "dari": { "x": 0.9, "y": 0.32 }, "ke": { "x": 0.78, "y": 0.62 } }
+```
+
 ## Aturan umum
 - **Satu bagian tubuh, satu aksi.** Bila dua aksi memakai bagian yang sama dan waktunya tumpang tindih,
   aksi yang **mulai belakangan** yang dipakai (seri → yang lebih akhir di daftar). `cek` memberi peringatan.
@@ -57,6 +81,16 @@ Contoh akting:
 - Event `urutan` biasa tetap berlaku. Bila sebuah aksi disederhanakan ke pose lama, event `urutan` di tengah
   rentang aksi bisa menimpa pose itu (digabung berdasarkan waktu).
 - Semua animasi dihitung dari frame Remotion (deterministik, aman dirender tidak berurutan).
+
+## Catatan determinisme render (hasil pengujian Phase 2C)
+Diukur dengan 10 render terpisah per frame, dibandingkan piksel per piksel:
+- **Jangan pakai `mix-blend-mode` atau `opacity` pada grup SVG** di tokoh/aksi: keduanya memaksa lapisan
+  komposit yang menggeser anti-aliasing antar render (terukur ≤5/255 di sekitar latar). Masukkan intensitas
+  ke `fill-opacity`/`stop-opacity` per elemen.
+- **Jangan pakai `<image>` atau `<svg>` bersarang** untuk aset di dalam tokoh: aset SVG kustom dimuat lalu
+  disisipkan sebagai vektor di dalam `<g transform>` (`bersihkanSvg` membuang `<script>`/`on*`).
+- **Lepas `delayRender` setelah state ter-commit ke DOM** (`useLayoutEffect`), bukan langsung setelah `setState`.
+  Kalau tidak, kadang frame dipotret sebelum aset terpasang.
 
 ## Peringatan (`node studio.mjs cek` & log render)
 | Kode | Tingkat | Akibat |
@@ -71,4 +105,5 @@ Contoh akting:
 - `shared/aksi.ts`: registri (bagian tubuh, validasi, nilai bawaan, fallback)
 - `remotion/karakter/aksi/resolver.ts`: routing & timeline (murni)
 - `remotion/karakter/aksi/terapkan.ts`: menerapkan aksi aktif ke status tokoh (murni)
-- `remotion/karakter/Tokoh.tsx`: `StatusTokoh.putarKepala` (opsional)
+- `remotion/karakter/aksi/ik.ts`: FK, IK dua sendi (clamp), layar↔lokal, bidikan (murni)
+- `remotion/karakter/Tokoh.tsx`: `geometriRig`, `sudutLenganDasar`, `StatusTokoh.putarKepala/lengan/pegang` (opsional)

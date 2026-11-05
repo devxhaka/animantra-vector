@@ -1,10 +1,12 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
+import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
+import { useBerkas } from './berkas';
 import type { Adegan, Ekspresi, Karakter, Lihat, Pose, Suasana, TokohAdegan } from '../shared/tipe';
 import { PARAM_EKSPRESI, PARAM_POSE, TokohSvg, VIEWBOX, campurEkspresi, campurPose, type StatusTokoh } from './karakter/Tokoh';
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
 import { aksiAktifPada, gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
 import { terapkanAksi } from './karakter/aksi/terapkan';
+import type { SvgInline } from './karakter/Tokoh';
 import type { ModeAnimasi } from '../shared/tipe';
 
 const TRANSISI = 0.32; // detik perpindahan pose/ekspresi
@@ -69,6 +71,7 @@ export const TokohAdeganView: React.FC<{
   );
   const tokoh = React.useMemo(() => (rencana ? gabungUrutanFallback(tokohSpec, rencana) : tokohSpec), [tokohSpec, rencana]);
   const st = statusPada(tokoh, t, awal);
+  const gambar = useGambarAksi(tokohSpec);
 
   let x = tokoh.x;
   let fase = st.berjalan ? t * Math.PI * 3.2 : NaN;
@@ -82,7 +85,14 @@ export const TokohAdeganView: React.FC<{
 
   const dasar: StatusTokoh = { pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet };
   // aksi khusus aktif di detik ini (murni dari t) → override bagian tubuh yang dipegang aksi
-  const s = rencana ? terapkanAksi(dasar, aksiAktifPada(rencana, t), { hadap: st.hadap }) : dasar;
+  const s = rencana
+    ? terapkanAksi(dasar, aksiAktifPada(rencana, t), {
+        hadap: st.hadap,
+        karakter,
+        penempatan: { x, y: tokoh.y ?? 0.8, skala: tokoh.skala ?? 1, lebarLayar: width, tinggiLayar: height, hadap: st.hadap },
+        gambar,
+      })
+    : dasar;
   const lebar = width * 0.62 * (tokoh.skala ?? 1);
   const tinggi = (lebar * VIEWBOX.h) / VIEWBOX.w;
   const kakiY = (tokoh.y ?? 0.8) * height;
@@ -91,6 +101,65 @@ export const TokohAdeganView: React.FC<{
   const atas = kakiY - tinggi * (-VIEWBOX.y / VIEWBOX.h);
   return <TokohSvg k={karakter} s={s} hadap={st.hadap} style={{ position: 'absolute', left: kiri, top: atas, width: lebar, height: tinggi }} />;
 };
+
+/** Ambil viewBox & isi SVG, buang <script> dan atribut on* (aset lokal pengguna, tetap dibersihkan). */
+export function bersihkanSvg(teks: string): SvgInline | null {
+  const m = teks.match(/<svg\b([^>]*)>([\s\S]*)<\/svg>/i);
+  if (!m) return null;
+  const vb = m[1].match(/viewBox\s*=\s*["']([^"']+)["']/i)?.[1];
+  if (!vb) return null;
+  const isi = m[2]
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href\s*=\s*["'])\s*javascript:[^"']*/gi, '$1#');
+  return { viewBox: vb, isi };
+}
+
+/**
+ * Muat aset SVG kustom aksi (mis. senter) SEBELUM frame difoto (delayRender), lalu sisipkan sebagai
+ * vektor inline — bukan <image> — supaya rasterisasi deterministik. Gagal/bukan SVG → gambar bawaan.
+ */
+function useGambarAksi(tokoh: TokohAdegan): (aset: string) => SvgInline | undefined {
+  const berkas = useBerkas();
+  const daftar = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const a of tokoh.aksi ?? []) {
+      const aset = (a as { aset?: unknown }).aset;
+      if (typeof aset === 'string' && aset) set.add(aset);
+    }
+    return [...set].sort();
+  }, [tokoh.aksi]);
+  const kunci = daftar.join('|');
+  const [siap, setSiap] = React.useState<Record<string, SvgInline> | null>(null);
+  const [tunda] = React.useState(() => (daftar.length ? delayRender('Memuat aset aksi: ' + kunci) : null));
+  // Lepas delayRender SETELAH state baru ter-commit ke DOM (bukan langsung setelah setState),
+  // supaya frame tidak pernah difoto sebelum senter kustom terpasang (race condition).
+  React.useLayoutEffect(() => {
+    if (siap !== null && tunda !== null) continueRender(tunda);
+  }, [siap, tunda]);
+  React.useEffect(() => {
+    if (!daftar.length) return;
+    let batal = false;
+    Promise.all(
+      daftar.map((aset) =>
+        fetch(berkas(aset))
+          .then((r) => (r.ok ? r.text() : ''))
+          .then((t) => [aset, bersihkanSvg(t)] as const)
+          .catch(() => [aset, null] as const),
+      ),
+    ).then((hasil) => {
+      if (batal) return;
+      const peta: Record<string, SvgInline> = {};
+      for (const [aset, svg] of hasil) if (svg) peta[aset] = svg;
+      setSiap(peta);
+    });
+    return () => {
+      batal = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kunci]);
+  return React.useCallback((aset: string) => siap?.[aset], [siap]);
+}
 
 export function cariKarakter(pemeran: Karakter[] | undefined, id: string): Karakter {
   return pemeran?.find((p) => p.id === id) ?? { ...KARAKTER_CADANGAN, id, nama: id };

@@ -29,8 +29,8 @@ pakaian, atau proporsi Morgan di spec. Ubah hanya lewat tab Karakter (berlaku un
 | Menalar | `berpikir` / `menjelaskan` | `bingung` → `tenang` | `depan` |
 | Menutup episode | `menjelaskan` → `diam` | `tenang` | `depan` |
 
-**Menoleh** (`turn-head`) sudah tersedia sebagai aksi khusus; lihat `mystery-animation.md`.
-Memegang senter dan membuka dokumen menyusul (Phase 2C/2D). Sampai saat itu, aksi tersebut
+**Menoleh** (`turn-head`) dan **menyorot senter** (`flashlight-sweep`) sudah tersedia sebagai aksi khusus;
+lihat `mystery-animation.md`. Membuka dokumen menyusul (Phase 2D). Sampai saat itu, aksi tersebut
 otomatis disederhanakan ke pose terdekat dengan peringatan.
 
 ## Tokoh lain (saksi, tokoh sejarah)

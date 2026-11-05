@@ -131,7 +131,7 @@ export const REGISTRI_AKSI: Record<JenisAksi, DefinisiAksi> = {
   'flashlight-sweep': {
     jenis: 'flashlight-sweep',
     deskripsi: 'Mengangkat senter dan menyapu dari satu arah ke arah lain, opsional dengan sinar.',
-    tersedia: false,
+    tersedia: true, // Phase 2C
     durasiMin: 0.6,
     punyaGambarBawaan: true,
     bagian: (a) => [tangan(a as { tangan?: string })],

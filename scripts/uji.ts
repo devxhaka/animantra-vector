@@ -11,10 +11,13 @@ import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec } from '../cli/cek';
-import { PUTAR_MAKS, targetPutar, terapkanAksi } from '../remotion/karakter/aksi/terapkan';
-import { PARAM_EKSPRESI, PARAM_POSE, PUTAR_DASAR, type StatusTokoh } from '../remotion/karakter/Tokoh';
+import { bersihkanSvg } from '../remotion/cerita';
+import { PUTAR_MAKS, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
+import { bidikTitik, bungkus, fkTangan, ikDuaSendi, layarKeLokal, lokalKeLayar, posisiBahu, sudutArah, type Penempatan } from '../remotion/karakter/aksi/ik';
+import type { BagianTubuh } from '../shared/aksi';
+import { PARAM_EKSPRESI, PARAM_POSE, PUTAR_DASAR, geometriRig, sudutLenganDasar, type StatusTokoh } from '../remotion/karakter/Tokoh';
 import type { AksiAktif } from '../remotion/karakter/aksi/resolver';
-import type { AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
+import type { AksiFlashlightSweep, AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
 
 let lulus = 0;
 const gagal: string[] = [];
@@ -135,9 +138,9 @@ uji('3 aksi terdaftar dengan bagian tubuh yang benar', () => {
   pastikan(REGISTRI_AKSI['flashlight-sweep'].bagian({ ...SENTER, tangan: 'bel' } as AksiTokoh).join() === 'lengan-bel', 'senter bel');
   pastikan(REGISTRI_AKSI['open-object'].bagian(BUKA).join() === 'lengan-dep', 'buka');
 });
-uji('status implementasi jujur: turn-head tersedia (2B); senter & open-object belum', () => {
-  pastikan(REGISTRI_AKSI['turn-head'].tersedia, 'turn-head harus tersedia');
-  pastikan(!REGISTRI_AKSI['flashlight-sweep'].tersedia && !REGISTRI_AKSI['open-object'].tersedia, 'lainnya belum');
+uji('status implementasi jujur: turn-head (2B) & flashlight-sweep (2C) tersedia; open-object belum', () => {
+  pastikan(REGISTRI_AKSI['turn-head'].tersedia && REGISTRI_AKSI['flashlight-sweep'].tersedia, 'harus tersedia');
+  pastikan(!REGISTRI_AKSI['open-object'].tersedia, 'open-object belum');
 });
 
 console.log('Phase 2A: kompatibilitas');
@@ -177,7 +180,7 @@ uji('existing → semua fallback pose lama + info "disederhanakan" yang jujur', 
 });
 uji('special/auto saat implementasi belum ada → fallback + peringatan "belum-tersedia"', () => {
   for (const mode of ['special', 'auto'] as const) {
-    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [SENTER] });
+    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [BUKA] });
     pastikan(!r.khusus.length && r.urutanFallback.length > 0, mode);
     pastikan(r.peringatan[0]?.kode === 'belum-tersedia' && r.peringatan[0].tingkat === 'peringatan', mode + ' ' + kode(r));
   }
@@ -279,15 +282,17 @@ uji('aksi melewati adegan & terlalu singkat diperingatkan', () => {
   const r = rencanakanAksi({ ...T_DASAR, aksi: [{ ...HEAD, durasi: 0.1 } as AksiTokoh, { ...BUKA, mulai: 4 } as AksiTokoh] }, { registri: tersediaSemua, durasiAdegan: 5 });
   pastikan(kode(r).includes('terlalu-singkat') && kode(r).includes('melewati-adegan'), kode(r).join());
 });
-uji('cekAksiSpec: masalah menggagalkan, fallback jadi peringatan (aset tak relevan saat fallback)', () => {
+uji('cekAksiSpec: masalah menggagalkan, aset hilang & fallback jadi peringatan', () => {
   const spec = {
     ...SPEC_CONTOH,
-    adegan: [{ id: 'a', narasi: 'x', durasi: 6, tokoh: [{ ...T_DASAR, aksi: [HEAD, { ...SENTER, aset: 'aset/tidak-ada.svg' }, { jenis: 'terbang', mulai: 0, durasi: 1 }] }] }],
+    adegan: [{ id: 'a', narasi: 'x', durasi: 6, tokoh: [{ ...T_DASAR, aksi: [HEAD, { ...SENTER, aset: 'aset/tidak-ada.svg' }, { ...BUKA, mulai: 3.5 }, { jenis: 'terbang', mulai: 0, durasi: 1 }] }] }],
   } as unknown as Spec;
   const h = cekAksiSpec(spec, (p) => p !== 'aset/tidak-ada.svg');
   pastikan(h.masalah.length === 1 && /terbang/.test(h.masalah[0]), JSON.stringify(h.masalah));
-  // turn-head kini aksi khusus (tanpa peringatan); senter masih fallback (1 peringatan)
-  pastikan(h.peringatan.length === 1 && /flashlight-sweep.*belum tersedia/.test(h.peringatan[0]), JSON.stringify(h.peringatan));
+  // turn-head: khusus (tanpa peringatan); senter: khusus + aset hilang → gambar bawaan; open-object: masih fallback
+  pastikan(h.peringatan.length === 2, JSON.stringify(h.peringatan));
+  pastikan(h.peringatan.some((x) => /flashlight-sweep: aset "aset\/tidak-ada.svg" tidak ditemukan → memakai gambar bawaan/.test(x)), 'aset hilang senter');
+  pastikan(h.peringatan.some((x) => /open-object.*belum tersedia/.test(x)), 'open-object fallback');
 });
 
 console.log('Phase 2A: arah & tokoh menghadap kiri');
@@ -365,6 +370,163 @@ uji('alur penuh resolver → terapkan: kembali=true lepas setelah selesai, kemba
 uji('mode existing tetap fallback walau turn-head tersedia', () => {
   const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: 'existing', aksi: [HEAD] });
   pastikan(!r.khusus.length && kode(r).join() === 'disederhanakan', kode(r).join());
+});
+
+// ======================= Phase 2C: flashlight-sweep & kinematika =======================
+console.log('Phase 2C: kinematika (FK/IK)');
+const GEO = geometriRig(AGENT_MORGAN);
+const dekat = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
+uji('IK: target terjangkau → tangan tepat di target (kedua lengan, badan condong, sedang berjalan)', () => {
+  for (const sisi of ['dep', 'bel'] as const)
+    for (const [miring, ayun] of [[0, 0], [-6, 0], [4, 7]]) {
+      const bahu = posisiBahu(GEO, sisi, miring, ayun);
+      const target = { x: bahu.x + 120, y: bahu.y + 80 };
+      const ik = ikDuaSendi(GEO, sisi, target, miring, ayun);
+      const fk = fkTangan(GEO, sisi, ik.sudut, miring, ayun);
+      pastikan(ik.terjangkau, 'harus terjangkau');
+      pastikan(dekat(fk.tangan.x, target.x, 0.5) && dekat(fk.tangan.y, target.y, 0.5), `${sisi} ${miring}/${ayun}: ${JSON.stringify(fk.tangan)} vs ${JSON.stringify(target)}`);
+    }
+});
+uji('IK: target terlalu jauh → di-clamp aman (lengan lurus ke arah target, terjangkau=false)', () => {
+  const bahu = posisiBahu(GEO, 'dep', 0, 0);
+  const target = { x: bahu.x + 5000, y: bahu.y - 3000 };
+  const ik = ikDuaSendi(GEO, 'dep', target, 0, 0);
+  const fk = fkTangan(GEO, 'dep', ik.sudut, 0, 0);
+  const jangkau = Math.hypot(fk.tangan.x - bahu.x, fk.tangan.y - bahu.y);
+  pastikan(!ik.terjangkau && dekat(jangkau, GEO.L1 + GEO.jarakTangan - 1, 0.5), 'jangkau ' + jangkau);
+  const arahTarget = Math.atan2(target.y - bahu.y, target.x - bahu.x), arahTangan = Math.atan2(fk.tangan.y - bahu.y, fk.tangan.x - bahu.x);
+  pastikan(Math.abs(arahTarget - arahTangan) < 0.01, 'arah melenceng');
+  pastikan(ik.sudut.every(Number.isFinite), 'sudut harus angka');
+});
+uji('IK: target terlalu dekat / tepat di bahu → di-clamp ke jarak minimum, tidak NaN', () => {
+  const bahu = posisiBahu(GEO, 'dep', 0, 0);
+  // catatan rig Morgan: L1 ≈ jarak siku→tangan, jadi jarak minimum hanya ≈1,5 unit (lengan terlipat penuh)
+  const ik = ikDuaSendi(GEO, 'dep', bahu, 0, 0);
+  pastikan(!ik.terjangkau && ik.sudut.every(Number.isFinite), JSON.stringify(ik));
+  const fk = fkTangan(GEO, 'dep', ik.sudut, 0, 0);
+  const min = Math.abs(GEO.L1 - GEO.jarakTangan) + 1;
+  pastikan(dekat(Math.hypot(fk.tangan.x - bahu.x, fk.tangan.y - bahu.y), min, 0.5), 'harus di jarak minimum');
+});
+uji('IK: siku selalu menekuk ke bawah', () => {
+  const bahu = posisiBahu(GEO, 'dep', 0, 0);
+  const ik = ikDuaSendi(GEO, 'dep', { x: bahu.x + 150, y: bahu.y }, 0, 0);
+  const fk = fkTangan(GEO, 'dep', ik.sudut, 0, 0);
+  pastikan(fk.siku.y > bahu.y, 'siku harus di bawah garis bahu–target');
+});
+uji('layar ↔ lokal: roundtrip untuk kedua hadap, posisi & skala berbeda', () => {
+  for (const hadap of ['kanan', 'kiri'] as const)
+    for (const [x, y, skala] of [[0.5, 0.8, 1], [0.3, 0.75, 0.7], [0.72, 0.85, 1.3]]) {
+      const p: Penempatan = { x, y, skala, lebarLayar: 1080, tinggiLayar: 1920, hadap };
+      for (const t of [{ x: 0.9, y: 0.4 }, { x: 0.1, y: 0.6 }]) {
+        const b = lokalKeLayar(layarKeLokal(t, p), p);
+        pastikan(dekat(b.x, t.x, 1e-9) && dekat(b.y, t.y, 1e-9), `${hadap} ${x}/${skala}`);
+      }
+      pastikan(layarKeLokal({ x, y }, p).x === 0 && layarKeLokal({ x, y }, p).y === 0, 'kaki = (0,0)');
+    }
+  const kanan = layarKeLokal({ x: 0.7, y: 0.8 }, { x: 0.5, y: 0.8, skala: 1, lebarLayar: 1080, tinggiLayar: 1920, hadap: 'kanan' });
+  const kiri = layarKeLokal({ x: 0.7, y: 0.8 }, { x: 0.5, y: 0.8, skala: 1, lebarLayar: 1080, tinggiLayar: 1920, hadap: 'kiri' });
+  pastikan(kanan.x > 0 && kiri.x === -kanan.x, 'cermin hadap kiri');
+  const kecil = layarKeLokal({ x: 0.7, y: 0.8 }, { x: 0.5, y: 0.8, skala: 0.5, lebarLayar: 1080, tinggiLayar: 1920, hadap: 'kanan' });
+  pastikan(dekat(kecil.x, kanan.x * 2, 1e-9), 'skala 0,5 → jarak lokal 2×');
+});
+uji('bidik: lengan bawah mengarah dari TANGAN ke target (< 0,5°), kedua lengan', () => {
+  for (const sisi of ['dep', 'bel'] as const)
+    for (const target of [{ x: 600, y: -300 }, { x: 300, y: -900 }, { x: -500, y: -400 }]) {
+      const b = bidikTitik(GEO, sisi, target, -3, 0);
+      pastikan(b.tepat, 'harus menemukan solusi tepat');
+      const fk = fkTangan(GEO, sisi, b.sudut, -3, 0);
+      const ke = sudutArah(target.x - fk.tangan.x, target.y - fk.tangan.y);
+      pastikan(Math.abs(bungkus(fk.sudutBawah - ke)) < 0.5, `${sisi} ${JSON.stringify(target)}: selisih ${bungkus(fk.sudutBawah - ke)}`);
+    }
+});
+
+console.log('Phase 2C: flashlight-sweep');
+const PEN = (hadap: 'kanan' | 'kiri' = 'kanan', x = 0.42, skala = 1): Penempatan => ({ x, y: 0.8, skala, lebarLayar: 1080, tinggiLayar: 1920, hadap });
+const aktifSenter = (a: Partial<AksiFlashlightSweep>, progres: number, amplop: number, bagian: BagianTubuh[] = ['lengan-dep']): AksiAktif => ({
+  indeks: 0, aksi: { ...(SENTER as AksiFlashlightSweep), tangan: 'dep', sinar: true, ...a } as AksiTokoh, bagian, progres, amplop, fase: 'tahan', pakaiGambarBawaan: true,
+});
+const ctxS = (hadap: 'kanan' | 'kiri' = 'kanan', extra: Partial<KonteksTerapkan> = {}): KonteksTerapkan => ({ hadap, karakter: AGENT_MORGAN, penempatan: PEN(hadap), ...extra });
+uji('arah layar → sudut lokal, dicerminkan untuk hadap kiri', () => {
+  pastikan(sudutArahLayar('kanan', 'kanan') === -90 && sudutArahLayar('kiri', 'kanan') === 90, 'hadap kanan');
+  pastikan(sudutArahLayar('kanan', 'kiri') === 90 && sudutArahLayar('kiri', 'kiri') === -90, 'hadap kiri');
+  pastikan(sudutArahLayar('atas', 'kiri') === -170 && sudutArahLayar('bawah', 'kanan') === -25, 'atas/bawah');
+});
+uji('selisih sapuan: jalur terpendek; depan↔belakang lewat atas', () => {
+  pastikan(selisihSapu(-90, -60) === 30 && selisihSapu(-90, 90) === -180 && selisihSapu(90, -90) === 180, 'nilai');
+});
+uji('amplop 0 → tidak diterapkan (status sama persis)', () => {
+  pastikan(terapkanAksi(S_DASAR, [aktifSenter({}, 0, 0)], ctxS()) === S_DASAR, 'harus objek sama');
+});
+uji('amplop 1 → lengan dipegang aksi, senter menyala; lengan bawah tepat ke sudut sapuan', () => {
+  const r = terapkanAksi(S_DASAR, [aktifSenter({ dari: 'kanan', ke: 'kanan' }, 0.5, 1)], ctxS());
+  pastikan(!!r.lengan?.dep && !r.lengan.bel && r.pegang?.dep?.jenis === 'senter' && r.pegang.dep.sinar === 1, JSON.stringify(r.pegang));
+  const fk = fkTangan(GEO, 'dep', r.lengan!.dep!, S_DASAR.pose.badan, 0);
+  pastikan(Math.abs(bungkus(fk.sudutBawah - -90)) < 1e-6, 'lengan bawah harus -90°, dapat ' + fk.sudutBawah);
+});
+uji('target titik: sinar (= arah lengan bawah) mengarah ke target di layar, hadap kanan & kiri, skala berbeda', () => {
+  for (const hadap of ['kanan', 'kiri'] as const)
+    for (const [x, skala] of [[0.42, 1], [0.3, 0.75]]) {
+      const pen = PEN(hadap, x, skala);
+      const target = { x: hadap === 'kanan' ? 0.85 : 0.05, y: 0.45 };
+      const r = terapkanAksi(S_DASAR, [aktifSenter({ dari: target, ke: target }, 0.5, 1)], { hadap, karakter: AGENT_MORGAN, penempatan: pen });
+      const fk = fkTangan(GEO, 'dep', r.lengan!.dep!, S_DASAR.pose.badan, 0);
+      const tl = layarKeLokal(target, pen);
+      const ke = sudutArah(tl.x - fk.tangan.x, tl.y - fk.tangan.y);
+      pastikan(Math.abs(bungkus(fk.sudutBawah - ke)) < 0.5, `${hadap} skala ${skala}: selisih ${bungkus(fk.sudutBawah - ke)}°`);
+    }
+});
+uji('sapuan bergerak monoton dari "dari" ke "ke"', () => {
+  let lalu = -Infinity;
+  for (let p = 0; p <= 1.0001; p += 0.05) {
+    const r = terapkanAksi(S_DASAR, [aktifSenter({ dari: 'kanan', ke: 'atas' }, p, 1)], ctxS());
+    const sb = fkTangan(GEO, 'dep', r.lengan!.dep!, S_DASAR.pose.badan, 0).sudutBawah;
+    const naik = -bungkus(sb); // -90 → -170: makin negatif
+    pastikan(naik >= lalu - 1e-9, 'tidak monoton di p=' + p.toFixed(2));
+    lalu = naik;
+  }
+});
+uji('sinar:false → senter dipegang tanpa sinar; tangan belakang memakai lengan belakang', () => {
+  const r = terapkanAksi(S_DASAR, [aktifSenter({ sinar: false }, 0.5, 1)], ctxS());
+  pastikan(r.pegang?.dep?.sinar === 0, 'sinar 0');
+  const b = terapkanAksi(S_DASAR, [aktifSenter({ tangan: 'bel' }, 0.5, 1, ['lengan-bel'])], ctxS());
+  pastikan(!!b.lengan?.bel && !b.lengan.dep && b.pegang?.bel?.jenis === 'senter', JSON.stringify(b.lengan));
+});
+uji('amplop di tengah → sudut di antara pose dasar dan sudut aksi', () => {
+  const dasar = sudutLenganDasar(S_DASAR).dep;
+  const penuh = terapkanAksi(S_DASAR, [aktifSenter({ dari: 'kanan', ke: 'kanan' }, 0.5, 1)], ctxS()).lengan!.dep!;
+  const setengah = terapkanAksi(S_DASAR, [aktifSenter({ dari: 'kanan', ke: 'kanan' }, 0.5, 0.5)], ctxS()).lengan!.dep!;
+  pastikan(dekat(setengah[0], (dasar[0] + penuh[0]) / 2, 1e-9) && dekat(setengah[1], (dasar[1] + penuh[1]) / 2, 1e-9), JSON.stringify({ dasar, penuh, setengah }));
+});
+uji('aset kustom termuat → dipakai; aset hilang → gambar bawaan', () => {
+  const svg = { viewBox: '0 0 40 100', isi: '<rect width="40" height="100"/>' };
+  const g = (a: string) => (a === 'aset/senter.svg' ? svg : undefined);
+  const ada = terapkanAksi(S_DASAR, [{ ...aktifSenter({ aset: 'aset/senter.svg' }, 0.5, 1), pakaiGambarBawaan: false }], ctxS('kanan', { gambar: g }));
+  pastikan(ada.pegang?.dep?.svg === svg, 'harus pakai gambar kustom');
+  const hilang = terapkanAksi(S_DASAR, [aktifSenter({ aset: 'aset/senter.svg' }, 0.5, 1)], ctxS('kanan', { gambar: g }));
+  pastikan(!hilang.pegang?.dep?.svg, 'pakaiGambarBawaan → tanpa gambar kustom');
+});
+uji('bersihkanSvg: ambil viewBox & isi; buang script, on*, javascript:', () => {
+  const r = bersihkanSvg('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 20"><script>alert(1)</script><rect onload="x()" width="10" height="20"/><a href="javascript:evil()">x</a></svg>');
+  pastikan(!!r && r.viewBox === '0 0 10 20', JSON.stringify(r));
+  pastikan(!/script|onload|javascript/i.test(r!.isi) && /<rect/.test(r!.isi), r!.isi);
+  pastikan(bersihkanSvg('<svg><rect/></svg>') === null && bersihkanSvg('bukan svg') === null, 'tanpa viewBox / bukan svg → null');
+});
+uji('menoleh + senter bersamaan (bagian tubuh berbeda)', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD, SENTER] });
+  pastikan(!r.peringatan.length && r.khusus.length === 2, kode(r).join());
+  const st = terapkanAksi(S_DASAR, aksiAktifPada(r, 1.5), ctxS());
+  pastikan(st.putarKepala !== undefined && !!st.lengan?.dep && !!st.pegang?.dep, JSON.stringify(Object.keys(st)));
+});
+uji('tanpa data penempatan → aksi lengan tidak diterapkan (aman), input tidak dimutasi', () => {
+  const salin = JSON.stringify(S_DASAR);
+  pastikan(terapkanAksi(S_DASAR, [aktifSenter({}, 0.5, 1)], { hadap: 'kanan' }) === S_DASAR, 'harus sama');
+  terapkanAksi(S_DASAR, [aktifSenter({}, 0.5, 1)], ctxS());
+  pastikan(JSON.stringify(S_DASAR) === salin, 'termutasi');
+});
+uji('determinisme: hasil identik bila diulang', () => {
+  const a = JSON.stringify(terapkanAksi(S_DASAR, [aktifSenter({ dari: { x: 0.2, y: 0.4 }, ke: { x: 0.9, y: 0.5 } }, 0.37, 0.8)], ctxS()));
+  const b = JSON.stringify(terapkanAksi(S_DASAR, [aktifSenter({ dari: { x: 0.2, y: 0.4 }, ke: { x: 0.9, y: 0.5 } }, 0.37, 0.8)], ctxS()));
+  pastikan(a === b, 'berbeda');
 });
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);

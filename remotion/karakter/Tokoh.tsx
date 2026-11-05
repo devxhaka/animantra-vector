@@ -104,6 +104,78 @@ export type StatusTokoh = {
    * Nilai PUTAR_DASAR menghasilkan wajah yang sama persis dengan wajah bawaan.
    */
   putarKepala?: number;
+  /**
+   * Opsional (aksi khusus): sudut FINAL lengan [bahu, siku] (derajat). Bila diisi, ayunan
+   * lambai/jelaskan/jalan tidak ditambahkan ke lengan itu karena lengan sedang dipegang aksi.
+   */
+  lengan?: { dep?: [number, number]; bel?: [number, number] };
+  /** Opsional: benda di tangan (senter). */
+  pegang?: { dep?: BendaTangan; bel?: BendaTangan };
+};
+
+/**
+ * Angka-angka tubuh tokoh (satu sumber, dipakai TubuhTokoh & kinematika aksi).
+ * Koordinat lokal: kaki di (0,0), y ke atas negatif, menghadap kanan.
+ */
+export function geometriRig(k: Karakter) {
+  const u = UKURAN[k.usia] ?? UKURAN.remaja;
+  const { H, R } = u;
+  const kepalaY = -(H - R);
+  const leherY = kepalaY + R * 0.9;
+  const bahuY = leherY + R * 0.14;
+  const pinggulY = -H * u.pinggul;
+  const lebarBadan = R * u.bahu;
+  const bahuDep = lebarBadan * 0.36;
+  const bahuBel = -lebarBadan * 0.42;
+  const panjangLengan = (pinggulY - bahuY) * 1.02;
+  const L1 = panjangLengan * 0.5;
+  const L2 = panjangLengan * 0.46;
+  const tebalLengan = R * 0.36;
+  const tebalKaki = R * 0.4;
+  return {
+    u, H, R, kepalaY, leherY, bahuY, pinggulY, lebarBadan, bahuDep, bahuBel, L1, L2, tebalLengan, tebalKaki,
+    /** titik sendi bahu (y) — sama untuk kedua lengan */
+    sendiBahuY: bahuY + R * 0.12,
+    /** jarak siku → pusat tangan di sepanjang lengan bawah */
+    jarakTangan: L2 + tebalLengan * 0.28,
+  };
+}
+export type GeometriRig = ReturnType<typeof geometriRig>;
+
+/** Sudut lengan yang tampil TANPA aksi: pose + ayunan lambai/jelaskan + ayunan jalan (satu sumber). */
+export function sudutLenganDasar(s: StatusTokoh): { dep: [number, number]; bel: [number, number] } {
+  let dep = [...s.pose.dep] as [number, number];
+  let bel = [...s.pose.bel] as [number, number];
+  if (s.pose.gerak === 'lambai') dep[1] += Math.sin(s.t * 9) * 22;
+  if (s.pose.gerak === 'jelaskan') {
+    dep[1] += Math.sin(s.t * 3.4) * 14;
+    bel[1] += Math.sin(s.t * 2.7 + 1) * 8;
+  }
+  if (!Number.isNaN(s.jalan)) {
+    const langkah = Math.sin(s.jalan);
+    dep = [dep[0] - langkah * 20, dep[1]];
+    bel = [bel[0] + langkah * 20, bel[1]];
+  }
+  return { dep, bel };
+}
+/** Naik-turun badan saat berjalan (satu sumber dengan TubuhTokoh). */
+export const ayunJalan = (s: StatusTokoh) => (Number.isNaN(s.jalan) ? 0 : Math.abs(Math.sin(s.jalan)) * 9);
+
+/** Ukuran senter bawaan relatif ke pusat tangan (koordinat lengan bawah, +y = arah lensa). */
+export const SENTER = { belakang: -0.18, ujung: 0.62, lebar: 0.2, kepala: 0.3 }; // × R
+
+/** Nilai putarKepala yang setara wajah 3/4 bawaan (fx = 0,14·R). */
+
+/** SVG kustom yang disisipkan sebagai vektor (bukan <image>) agar rasterisasi tetap deterministik. */
+export type SvgInline = { viewBox: string; isi: string };
+
+/** Benda yang dipegang di ujung lengan bawah (aksi khusus). */
+export type BendaTangan = {
+  jenis: 'senter';
+  /** 0..1 kekuatan sinar (0 = senter mati / tanpa sinar) */
+  sinar: number;
+  /** SVG senter kustom yang SUDAH dimuat & dibersihkan (vektor inline); kosong = gambar bawaan */
+  svg?: SvgInline;
 };
 
 /** Nilai putarKepala yang setara wajah 3/4 bawaan (fx = 0,14·R). */
@@ -118,8 +190,8 @@ function hashId(s: string) {
 /** Gambar tokoh sebagai <g> di koordinat lokal (kaki di 0,0). */
 export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) => {
   const uid = React.useId().replace(/:/g, '');
-  const u = UKURAN[k.usia] ?? UKURAN.remaja;
-  const { H, R } = u;
+  const geo = geometriRig(k);
+  const { u, H, R } = geo;
   const w = k.warna;
   const panjang = k.pakaian === 'hijab-gamis' || k.pakaian === 'jubah-sorban'; // pakaian sampai mata kaki
   const lenganPendek = k.pakaian === 'kasual';
@@ -128,19 +200,8 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
   const aks = new Set(k.aksesori ?? []);
   const warnaDalam = w.dalam ?? '#141414';
 
-  // titik-titik tubuh
-  const kepalaY = -(H - R);
-  const leherY = kepalaY + R * 0.9;
-  const bahuY = leherY + R * 0.14;
-  const pinggulY = -H * u.pinggul;
-  const lebarBadan = R * u.bahu;
-  const bahuDep = lebarBadan * 0.36;
-  const bahuBel = -lebarBadan * 0.42;
-  const panjangLengan = (pinggulY - bahuY) * 1.02;
-  const L1 = panjangLengan * 0.5;
-  const L2 = panjangLengan * 0.46;
-  const tebalLengan = R * 0.36;
-  const tebalKaki = R * 0.4;
+  // titik-titik tubuh (dari geometriRig: satu sumber dengan kinematika aksi)
+  const { kepalaY, leherY, bahuY, pinggulY, lebarBadan, bahuDep, bahuBel, L1, L2, tebalLengan, tebalKaki } = geo;
 
   // gerak hidup
   const seed = hashId(k.id);
@@ -151,22 +212,43 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
   const fasaKedip = ((s.t + seed * 3.7) % 3.9) / 3.9;
   const kedip = fasaKedip > 0.965 ? 0.08 : 1;
 
-  let dep = [...s.pose.dep] as [number, number];
-  let bel = [...s.pose.bel] as [number, number];
-  if (s.pose.gerak === 'lambai') dep[1] += Math.sin(s.t * 9) * 22;
-  if (s.pose.gerak === 'jelaskan') {
-    dep[1] += Math.sin(s.t * 3.4) * 14;
-    bel[1] += Math.sin(s.t * 2.7 + 1) * 8;
-  }
-  if (berjalan) {
-    dep = [dep[0] - langkah * 20, dep[1]];
-    bel = [bel[0] + langkah * 20, bel[1]];
-  }
+  let { dep, bel } = sudutLenganDasar(s);
+  if (s.lengan?.dep) dep = [...s.lengan.dep] as [number, number];
+  if (s.lengan?.bel) bel = [...s.lengan.bel] as [number, number];
   const kepalaMiring = s.pose.kepala + (s.ekspresi.miring ?? 0) + Math.sin(s.t * 1.3 + seed * 9) * 1.2 + s.bicara * 2.5;
   const badanMiring = s.pose.badan;
 
   // ---------- bagian ----------
-  const Lengan = ({ x, sudut, belakang }: { x: number; sudut: [number, number]; belakang?: boolean }) => {
+  const Senter = ({ b }: { b: BendaTangan }) => {
+    const yT = L2 + tebalLengan * 0.28; // pusat tangan
+    const y0 = yT + R * SENTER.belakang;
+    const y1 = yT + R * SENTER.ujung;
+    const lb = R * SENTER.lebar;
+    const lk = R * SENTER.kepala;
+    if (b.svg) {
+      // Sama dengan preserveAspectRatio="xMidYMid meet", tapi lewat <g transform> biasa: elemen <svg>
+      // bersarang membuat viewport/lapisan baru yang terukur menggeser anti-aliasing antar render.
+      const [vx, vy, vw, vh] = b.svg.viewBox.split(/[\s,]+/).map(Number);
+      const bw = lk, bh = y1 - y0;
+      if ([vx, vy, vw, vh].every(Number.isFinite) && vw > 0 && vh > 0) {
+        const k = Math.min(bw / vw, bh / vh);
+        const tx = -lk / 2 + (bw - vw * k) / 2 - vx * k;
+        const ty = y0 + (bh - vh * k) / 2 - vy * k;
+        return <g transform={`translate(${tx} ${ty}) scale(${k})`} dangerouslySetInnerHTML={{ __html: b.svg.isi }} />;
+      }
+    }
+    return (
+      <g stroke={GARIS} strokeWidth={TEBAL * 0.8} strokeLinejoin="round">
+        <rect x={-lb / 2} y={y0} width={lb} height={(y1 - y0) * 0.72} rx={lb * 0.25} fill="#3a3f46" />
+        <rect x={-lb / 2 + 3} y={y0 + 6} width={lb * 0.28} height={(y1 - y0) * 0.6} rx={3} fill="#5b626c" stroke="none" />
+        <path d={`M ${-lb / 2} ${y0 + (y1 - y0) * 0.7} L ${-lk / 2} ${y1 - R * 0.05} L ${lk / 2} ${y1 - R * 0.05} L ${lb / 2} ${y0 + (y1 - y0) * 0.7} Z`} fill="#4a515a" />
+        <rect x={-lk / 2} y={y1 - R * 0.06} width={lk} height={R * 0.07} rx={4} fill="#9aa3ad" />
+        <ellipse cx={0} cy={y1 + R * 0.005} rx={lk * 0.42} ry={R * 0.03} fill={b.sinar > 0 ? '#fff6cf' : '#c9d2dc'} />
+      </g>
+    );
+  };
+
+  const Lengan = ({ x, sudut, belakang, benda }: { x: number; sudut: [number, number]; belakang?: boolean; benda?: BendaTangan }) => {
     const warnaLengan = belakang ? gelap(w.atasan, 0.12) : w.atasan;
     const warnaKulit = belakang ? gelap(w.kulit, 0.1) : w.kulit;
     return (
@@ -175,6 +257,7 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
         <g transform={`translate(0 ${L1}) rotate(${sudut[1]})`}>
           <rect x={-tebalLengan * 0.46} y={-tebalLengan * 0.35} width={tebalLengan * 0.92} height={L2 + tebalLengan * 0.4} rx={tebalLengan * 0.46} fill={lenganPendek ? warnaKulit : warnaLengan} stroke={GARIS} strokeWidth={TEBAL} />
           {!lenganPendek ? <rect x={-tebalLengan * 0.5} y={L2 - tebalLengan * 0.25} width={tebalLengan} height={tebalLengan * 0.28} rx={6} fill={gelap(warnaLengan, 0.15)} stroke={GARIS} strokeWidth={TEBAL * 0.8} /> : null}
+          {benda?.jenis === 'senter' ? <Senter b={benda} /> : null}
           <circle cx={0} cy={L2 + tebalLengan * 0.28} r={tebalLengan * 0.56} fill={warnaKulit} stroke={GARIS} strokeWidth={TEBAL} />
         </g>
       </g>
@@ -386,7 +469,7 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
     <g transform={`translate(0 ${-ayun})`}>
       {/* lengan & kaki belakang */}
       <Kaki x={-pisahKaki * 0.6} sudut={-sudutKaki} belakang />
-      <Lengan x={bahuBel} sudut={bel} belakang />
+      <Lengan x={bahuBel} sudut={bel} belakang benda={s.pegang?.bel} />
       <g transform={`rotate(${badanMiring} 0 ${pinggulY})`}>
         <RambutBelakang />
         <Kaki x={pisahKaki} sudut={sudutKaki} />
@@ -495,7 +578,7 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
       </g>
       {/* lengan depan */}
       <g transform={`rotate(${badanMiring} 0 ${pinggulY})`}>
-        <Lengan x={bahuDep} sudut={dep} />
+        <Lengan x={bahuDep} sudut={dep} benda={s.pegang?.dep} />
       </g>
     </g>
   );
@@ -504,6 +587,37 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
     <g>
       <ellipse cx={0} cy={4} rx={R * 1.15} ry={R * 0.18} fill="#000" opacity={s.siluet ? 0.25 : 0.14} />
       {s.siluet ? <g style={{ filter: 'brightness(0)' }} opacity={0.94}>{isi}</g> : isi}
+      {(['dep', 'bel'] as const).map((sisi) => {
+        const b = s.pegang?.[sisi];
+        if (!b || b.jenis !== 'senter' || b.sinar <= 0) return null;
+        const sudut = sisi === 'dep' ? dep : bel;
+        // HARUS sama dengan rantai transform lengan di `isi`: translate(ayun) → [rotate condong: hanya lengan depan] → bahu → siku
+        const rantai =
+          `translate(0 ${-ayun}) ` +
+          (sisi === 'dep' ? `rotate(${badanMiring} 0 ${pinggulY}) ` : '') +
+          `translate(${sisi === 'dep' ? bahuDep : bahuBel} ${bahuY + R * 0.12}) rotate(${sudut[0]}) translate(0 ${L1}) rotate(${sudut[1]})`;
+        const yLensa = L2 + tebalLengan * 0.28 + R * SENTER.ujung;
+        const panjang = R * 6.2;
+        const lebarUjung = Math.tan((13 * Math.PI) / 180) * panjang;
+        const idG = `sn${uid}${sisi}`;
+        // Sengaja TANPA mix-blend-mode & TANPA opacity grup: keduanya memaksa lapisan komposit terpisah
+        // yang membuat anti-aliasing di sekitarnya berubah antar render (terukur). Intensitas dimasukkan
+        // langsung ke opasitas tiap elemen → hasil deterministik.
+        const k = Math.min(1, b.sinar);
+        return (
+          <g key={sisi} transform={rantai}>
+            <defs>
+              <linearGradient id={idG} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#fff4c8" stopOpacity={0.62 * k} />
+                <stop offset="0.55" stopColor="#ffe9a8" stopOpacity={0.2 * k} />
+                <stop offset="1" stopColor="#ffe9a8" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <polygon points={`${-R * 0.1},${yLensa} ${R * 0.1},${yLensa} ${lebarUjung},${yLensa + panjang} ${-lebarUjung},${yLensa + panjang}`} fill={`url(#${idG})`} />
+            <circle cx={0} cy={yLensa} r={R * 0.22} fill="#fff6cf" fillOpacity={0.45 * k} />
+          </g>
+        );
+      })}
     </g>
   );
 };
