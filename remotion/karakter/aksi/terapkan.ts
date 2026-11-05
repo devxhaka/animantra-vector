@@ -1,10 +1,11 @@
 // Menerapkan aksi khusus yang aktif ke StatusTokoh — MURNI & DETERMINISTIK.
 // Input: status dasar (dari mesin pose lama) + daftar aksi aktif (dari resolver) di detik yang sama.
 // Output: status baru (objek baru; input tidak dimutasi). Tanpa aksi aktif → objek status yang sama.
-import { EKSPRESI, type AksiFlashlightSweep, type AksiTurnHead, type ArahAksi, type Karakter, type Lihat } from '../../../shared/tipe';
+import { EKSPRESI, type AksiFlashlightSweep, type AksiOpenObject, type AksiTurnHead, type ArahAksi, type Karakter, type Lihat, type TokohAdegan } from '../../../shared/tipe';
+import { bentukBenda, tepiPanel, targetTangan, type Kanvas } from './benda';
 import { LIHAT, PARAM_EKSPRESI, PUTAR_DASAR, ayunJalan, campurEkspresi, geometriRig, sudutLenganDasar, type GeometriRig, type StatusTokoh, type SvgInline } from '../Tokoh';
 import type { AksiAktif } from './resolver';
-import { bidikTitik, arahkanLengan, bungkus, layarKeLokal, type Penempatan, type Sisi } from './ik';
+import { bidikTitik, arahkanLengan, bungkus, ikDuaSendi, layarKeLokal, type Penempatan, type Sisi } from './ik';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -87,6 +88,40 @@ function terapkanSenter(s: StatusTokoh, a: AksiAktif & { aksi: AksiFlashlightSwe
   };
 }
 
+// ---------------- open-object ----------------
+function terapkanBuka(s: StatusTokoh, a: AksiAktif & { aksi: AksiOpenObject }, ctx: KonteksTerapkan): StatusTokoh {
+  if (!ctx.karakter || !ctx.penempatan) return s;
+  const sisi: Sisi = a.aksi.tangan === 'bel' ? 'bel' : 'dep';
+  if (!a.bagian.includes(sisi === 'dep' ? 'lengan-dep' : 'lengan-bel')) return s;
+  const pen = ctx.penempatan;
+  const b = bentukBenda(a.aksi, { lebar: pen.lebarLayar, tinggi: pen.tinggiLayar }, pen.x);
+  const t = a.aksi.mulai + a.progres * a.aksi.durasi;
+  const { titik, bobot } = targetTangan(a.aksi, b, t);
+  if (bobot <= 0) return s;
+  const geo = geometriRig(ctx.karakter);
+  const badanMiring = s.pose.badan;
+  const ik = ikDuaSendi(geo, sisi, layarKeLokal({ x: titik.x / pen.lebarLayar, y: titik.y / pen.tinggiLayar }, pen), badanMiring, ayunJalan(s));
+  const dasar = sudutLenganDasar(s)[sisi];
+  const sudut: [number, number] = [dasar[0] + bungkus(ik.sudut[0] - dasar[0]) * bobot, dasar[1] + bungkus(ik.sudut[1] - dasar[1]) * bobot];
+  return { ...s, lengan: { ...s.lengan, [sisi]: sudut } };
+}
+
+/**
+ * Periksa (statis) apakah tangan bisa menjangkau benda: tepi panel tertutup & terbuka penuh.
+ * Bila tidak, renderer tetap aman (IK di-clamp: lengan lurus ke arah benda) tapi tangan tidak menyentuh.
+ */
+export function periksaJangkauan(tokoh: TokohAdegan, aksi: AksiOpenObject, karakter: Karakter, kanvas: Kanvas): string | null {
+  const hadap = tokoh.hadap ?? 'kanan';
+  const pen: Penempatan = { x: tokoh.x, y: tokoh.y ?? 0.8, skala: tokoh.skala ?? 1, lebarLayar: kanvas.lebar, tinggiLayar: kanvas.tinggi, hadap };
+  const b = bentukBenda(aksi, kanvas, tokoh.x);
+  const geo = geometriRig(karakter);
+  const sisi: Sisi = aksi.tangan === 'bel' ? 'bel' : 'dep';
+  const titik = [tepiPanel(b, 0), tepiPanel(b, 180)];
+  const gagal = titik.filter((p) => !ikDuaSendi(geo, sisi, layarKeLokal({ x: p.x / kanvas.lebar, y: p.y / kanvas.tinggi }, pen), 0, 0).terjangkau);
+  if (!gagal.length) return null;
+  return `open-object: ${aksi.benda} di (${aksi.posisi.x}, ${aksi.posisi.y}) di luar jangkauan tangan ${karakter.nama ?? karakter.id}; tangan di-clamp (lengan lurus ke arah benda) dan tidak menyentuh tepi panel. Dekatkan tokoh/benda atau kecilkan skala benda`;
+}
+
 export function terapkanAksi(s: StatusTokoh, aktif: readonly AksiAktif[], ctx: KonteksTerapkan): StatusTokoh {
   if (!aktif.length) return s;
   let hasil: StatusTokoh = s;
@@ -106,7 +141,7 @@ export function terapkanAksi(s: StatusTokoh, aktif: readonly AksiAktif[], ctx: K
       };
     }
     if (a.aksi.jenis === 'flashlight-sweep' && a.amplop > 0) hasil = terapkanSenter(hasil, a as AksiAktif & { aksi: AksiFlashlightSweep }, ctx);
-    // open-object (2D) belum diterapkan di sini; resolver tetap merutekannya ke fallback.
+    if (a.aksi.jenis === 'open-object') hasil = terapkanBuka(hasil, a as AksiAktif & { aksi: AksiOpenObject }, ctx);
   }
   return hasil;
 }

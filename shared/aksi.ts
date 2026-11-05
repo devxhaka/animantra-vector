@@ -27,7 +27,8 @@ export type KodePeringatan =
   | 'aset-hilang' // aset kustom tidak ditemukan → pakai gambar bawaan
   | 'tumpang-tindih' // dua aksi berebut bagian tubuh yang sama
   | 'melewati-adegan' // aksi berakhir setelah adegan selesai
-  | 'terlalu-singkat'; // durasi di bawah minimum yang wajar
+  | 'terlalu-singkat' // durasi di bawah minimum yang wajar
+  | 'di-luar-jangkauan'; // tangan tidak bisa menjangkau benda (IK di-clamp)
 
 export type PeringatanAksi = {
   kode: KodePeringatan;
@@ -156,7 +157,7 @@ export const REGISTRI_AKSI: Record<JenisAksi, DefinisiAksi> = {
   'open-object': {
     jenis: 'open-object',
     deskripsi: 'Tangan meraih benda (dokumen/buku/map) di posisi tertentu lalu membukanya.',
-    tersedia: false,
+    tersedia: true, // Phase 2D
     durasiMin: 0.8,
     punyaGambarBawaan: true,
     bagian: (a) => [tangan(a as { tangan?: string })],

@@ -11,13 +11,14 @@ import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec } from '../cli/cek';
-import { bersihkanSvg } from '../remotion/cerita';
-import { PUTAR_MAKS, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
+import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
+import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
+import { bentukBenda, sudutBuka, targetTangan, tepiPanel } from '../remotion/karakter/aksi/benda';
 import { bidikTitik, bungkus, fkTangan, ikDuaSendi, layarKeLokal, lokalKeLayar, posisiBahu, sudutArah, type Penempatan } from '../remotion/karakter/aksi/ik';
 import type { BagianTubuh } from '../shared/aksi';
 import { PARAM_EKSPRESI, PARAM_POSE, PUTAR_DASAR, geometriRig, sudutLenganDasar, type StatusTokoh } from '../remotion/karakter/Tokoh';
 import type { AksiAktif } from '../remotion/karakter/aksi/resolver';
-import type { AksiFlashlightSweep, AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
+import type { AksiFlashlightSweep, AksiOpenObject, AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
 
 let lulus = 0;
 const gagal: string[] = [];
@@ -138,10 +139,8 @@ uji('3 aksi terdaftar dengan bagian tubuh yang benar', () => {
   pastikan(REGISTRI_AKSI['flashlight-sweep'].bagian({ ...SENTER, tangan: 'bel' } as AksiTokoh).join() === 'lengan-bel', 'senter bel');
   pastikan(REGISTRI_AKSI['open-object'].bagian(BUKA).join() === 'lengan-dep', 'buka');
 });
-uji('status implementasi jujur: turn-head (2B) & flashlight-sweep (2C) tersedia; open-object belum', () => {
-  pastikan(REGISTRI_AKSI['turn-head'].tersedia && REGISTRI_AKSI['flashlight-sweep'].tersedia, 'harus tersedia');
-  pastikan(!REGISTRI_AKSI['open-object'].tersedia, 'open-object belum');
-});
+uji('status implementasi: ketiga aksi tersedia (2B turn-head, 2C flashlight-sweep, 2D open-object)', () =>
+  pastikan(ID_AKSI.every((j) => REGISTRI_AKSI[j].tersedia), 'semua harus tersedia'));
 
 console.log('Phase 2A: kompatibilitas');
 uji('tokoh tanpa aksi → rencana kosong, tanpa peringatan, objek tokoh tidak berubah', () => {
@@ -180,7 +179,9 @@ uji('existing → semua fallback pose lama + info "disederhanakan" yang jujur', 
 });
 uji('special/auto saat implementasi belum ada → fallback + peringatan "belum-tersedia"', () => {
   for (const mode of ['special', 'auto'] as const) {
-    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [BUKA] });
+    // semua aksi kini tersedia → kondisi "belum tersedia" diuji lewat registri tiruan
+    const belum = { 'open-object': { ...REGISTRI_AKSI['open-object'], tersedia: false } };
+    const r = rencanakanAksi({ ...T_DASAR, modeAnimasi: mode, aksi: [BUKA] }, { registri: belum });
     pastikan(!r.khusus.length && r.urutanFallback.length > 0, mode);
     pastikan(r.peringatan[0]?.kode === 'belum-tersedia' && r.peringatan[0].tingkat === 'peringatan', mode + ' ' + kode(r));
   }
@@ -285,14 +286,13 @@ uji('aksi melewati adegan & terlalu singkat diperingatkan', () => {
 uji('cekAksiSpec: masalah menggagalkan, aset hilang & fallback jadi peringatan', () => {
   const spec = {
     ...SPEC_CONTOH,
-    adegan: [{ id: 'a', narasi: 'x', durasi: 6, tokoh: [{ ...T_DASAR, aksi: [HEAD, { ...SENTER, aset: 'aset/tidak-ada.svg' }, { ...BUKA, mulai: 3.5 }, { jenis: 'terbang', mulai: 0, durasi: 1 }] }] }],
+    pemeran: [AGENT_MORGAN],
+    adegan: [{ id: 'a', narasi: 'x', durasi: 6, tokoh: [{ ...T_DASAR, aksi: [HEAD, { ...SENTER, aset: 'aset/tidak-ada.svg' }, { ...BUKA, mulai: 3.5, posisi: { x: 0.66, y: 0.55 } }, { jenis: 'terbang', mulai: 0, durasi: 1 }] }] }],
   } as unknown as Spec;
   const h = cekAksiSpec(spec, (p) => p !== 'aset/tidak-ada.svg');
   pastikan(h.masalah.length === 1 && /terbang/.test(h.masalah[0]), JSON.stringify(h.masalah));
-  // turn-head: khusus (tanpa peringatan); senter: khusus + aset hilang → gambar bawaan; open-object: masih fallback
-  pastikan(h.peringatan.length === 2, JSON.stringify(h.peringatan));
-  pastikan(h.peringatan.some((x) => /flashlight-sweep: aset "aset\/tidak-ada.svg" tidak ditemukan → memakai gambar bawaan/.test(x)), 'aset hilang senter');
-  pastikan(h.peringatan.some((x) => /open-object.*belum tersedia/.test(x)), 'open-object fallback');
+  // turn-head & open-object (terjangkau): khusus tanpa peringatan; senter: aset hilang → gambar bawaan
+  pastikan(h.peringatan.length === 1 && /flashlight-sweep: aset "aset\/tidak-ada.svg" tidak ditemukan → memakai gambar bawaan/.test(h.peringatan[0]), JSON.stringify(h.peringatan));
 });
 
 console.log('Phase 2A: arah & tokoh menghadap kiri');
@@ -527,6 +527,98 @@ uji('determinisme: hasil identik bila diulang', () => {
   const a = JSON.stringify(terapkanAksi(S_DASAR, [aktifSenter({ dari: { x: 0.2, y: 0.4 }, ke: { x: 0.9, y: 0.5 } }, 0.37, 0.8)], ctxS()));
   const b = JSON.stringify(terapkanAksi(S_DASAR, [aktifSenter({ dari: { x: 0.2, y: 0.4 }, ke: { x: 0.9, y: 0.5 } }, 0.37, 0.8)], ctxS()));
   pastikan(a === b, 'berbeda');
+});
+
+// ======================= Phase 2D: open-object =======================
+console.log('Phase 2D: geometri & timeline benda');
+const KANVAS = { lebar: 1080, tinggi: 1920 };
+const B_AKSI = (a: Partial<AksiOpenObject> = {}): AksiOpenObject => ({ jenis: 'open-object', mulai: 1, durasi: 2, benda: 'buku', posisi: { x: 0.66, y: 0.55 }, skala: 1, tangan: 'dep', tetapTerbuka: true, ...a });
+uji('bentuk benda: engsel di posisi, sisi tertutup menjauhi tokoh', () => {
+  const b = bentukBenda(B_AKSI(), KANVAS, 0.5);
+  pastikan(b.engselX === 0.66 * 1080 && b.cy === 0.55 * 1920 && b.arah === 1 && dekat(b.setengah, 0.2 * 1080 / 2, 1e-9), JSON.stringify(b));
+  pastikan(bentukBenda(B_AKSI({ posisi: { x: 0.3, y: 0.55 } }), KANVAS, 0.5).arah === -1, 'benda di kiri tokoh');
+  pastikan(dekat(bentukBenda(B_AKSI({ skala: 0.5 }), KANVAS, 0.5).setengah, b.setengah / 2, 1e-9), 'skala');
+});
+uji('sudut buka: tertutup → terbuka di fase buka; tetap terbuka / menutup kembali', () => {
+  const a = B_AKSI();
+  pastikan(sudutBuka(a, 0) === 0 && sudutBuka(a, 1 + 2 * 0.44) === 0, 'tertutup sebelum fase buka');
+  pastikan(dekat(sudutBuka(a, 1 + 2 * 0.65), 90, 1e-6), 'tengah fase buka = 90°');
+  pastikan(sudutBuka(a, 1 + 2 * 0.9) === 180 && sudutBuka(a, 9) === 180, 'tetap terbuka');
+  const t = B_AKSI({ tetapTerbuka: false });
+  pastikan(sudutBuka(t, 1 + 2 * 0.86) < 180 && sudutBuka(t, 3) === 0 && sudutBuka(t, 9) === 0, 'menutup kembali');
+  let lalu = -1;
+  for (let x = 0; x <= 4; x += 0.05) {
+    const s = sudutBuka(a, x);
+    pastikan(s >= lalu - 1e-9, 'harus monoton naik');
+    lalu = s;
+  }
+});
+uji('tepi panel: tertutup = tepi jauh, terbuka = sisi tokoh, tegak = di engsel', () => {
+  const b = bentukBenda(B_AKSI(), KANVAS, 0.5);
+  pastikan(dekat(tepiPanel(b, 0).x, b.engselX + b.setengah, 1e-9) && dekat(tepiPanel(b, 180).x, b.engselX - b.setengah, 1e-9) && dekat(tepiPanel(b, 90).x, b.engselX, 1e-9), 'posisi tepi');
+});
+uji('target tangan: bobot naik → 1 saat sentuh/buka → turun saat lepas; titik = tepi panel', () => {
+  const a = B_AKSI(), b = bentukBenda(a, KANVAS, 0.5);
+  pastikan(targetTangan(a, b, 0.99).bobot === 0 && targetTangan(a, b, 3.01).bobot === 0, 'di luar aksi');
+  const jangkau = targetTangan(a, b, 1 + 2 * 0.2);
+  pastikan(jangkau.bobot > 0 && jangkau.bobot < 1 && jangkau.titik.x === tepiPanel(b, 0).x, JSON.stringify(jangkau));
+  pastikan(targetTangan(a, b, 1 + 2 * 0.4).bobot === 1, 'sentuh');
+  const buka = targetTangan(a, b, 1 + 2 * 0.65);
+  pastikan(buka.bobot === 1 && dekat(buka.titik.x, tepiPanel(b, sudutBuka(a, 1 + 2 * 0.65)).x, 1e-9), 'buka mengikuti tepi');
+  const lepas = targetTangan(a, b, 1 + 2 * 0.93);
+  pastikan(lepas.bobot > 0 && lepas.bobot < 1, 'lepas');
+});
+
+console.log('Phase 2D: lengan menjangkau & membuka');
+const aktifBuka = (a: AksiOpenObject, t: number, bagian: BagianTubuh[] = ['lengan-dep']): AksiAktif => ({
+  indeks: 0, aksi: a, bagian, progres: (t - a.mulai) / a.durasi, amplop: 1, fase: 'tahan', pakaiGambarBawaan: true,
+});
+const tanganLayar = (st: StatusTokoh, sisi: 'dep' | 'bel', pen: Penempatan) => {
+  const fk = fkTangan(GEO, sisi, st.lengan![sisi]!, st.pose.badan, 0);
+  const l = lokalKeLayar(fk.tangan, pen);
+  return { x: l.x * pen.lebarLayar, y: l.y * pen.tinggiLayar };
+};
+uji('saat sentuh & membuka, tangan tepat di tepi panel (hadap kanan/kiri, skala berbeda, tangan dep/bel)', () => {
+  // tangan belakang: bahunya di sisi punggung → jangkauan lebih pendek, benda harus lebih dekat ke tubuh
+  const kasus: [('kanan' | 'kiri'), number, number, number, number, 'dep' | 'bel'][] = [
+    ['kanan', 0.5, 1, 0.66, 0.55, 'dep'], ['kiri', 0.55, 1, 0.38, 0.55, 'dep'], ['kanan', 0.45, 0.8, 0.55, 0.6, 'dep'], ['kanan', 0.5, 1, 0.54, 0.52, 'bel'],
+  ];
+  for (const [hadap, x, skala, px, py, sisi] of kasus) {
+    const pen: Penempatan = { x, y: 0.8, skala, lebarLayar: 1080, tinggiLayar: 1920, hadap };
+    const a = B_AKSI({ posisi: { x: px, y: py }, skala: 0.8, tangan: sisi });
+    const b = bentukBenda(a, KANVAS, x);
+    pastikan(periksaJangkauan({ id: 'morgan', x, skala, hadap }, a, AGENT_MORGAN, KANVAS) === null, `${hadap}/${sisi}: seharusnya terjangkau`);
+    for (const p of [0.4, 0.55, 0.7, 0.84]) {
+      const t = a.mulai + p * a.durasi;
+      const st = terapkanAksi(S_DASAR, [aktifBuka(a, t, [sisi === 'dep' ? 'lengan-dep' : 'lengan-bel'])], { hadap, karakter: AGENT_MORGAN, penempatan: pen });
+      const tangan = tanganLayar(st, sisi, pen);
+      const tepi = targetTangan(a, b, t).titik;
+      pastikan(dekat(tangan.x, tepi.x, 1) && dekat(tangan.y, tepi.y, 1), `${hadap}/${sisi} p=${p}: tangan ${JSON.stringify(tangan)} vs tepi ${JSON.stringify(tepi)}`);
+    }
+  }
+});
+uji('di luar jangkauan → peringatan statis + IK di-clamp (tanpa NaN, lengan ke arah benda)', () => {
+  const pen: Penempatan = { x: 0.3, y: 0.8, skala: 1, lebarLayar: 1080, tinggiLayar: 1920, hadap: 'kanan' };
+  const a = B_AKSI({ posisi: { x: 0.92, y: 0.5 } });
+  const pesan = periksaJangkauan({ id: 'morgan', x: 0.3, hadap: 'kanan' }, a, AGENT_MORGAN, KANVAS);
+  pastikan(!!pesan && /di luar jangkauan/.test(pesan), String(pesan));
+  const st = terapkanAksi(S_DASAR, [aktifBuka(a, a.mulai + 0.6 * a.durasi)], { hadap: 'kanan', karakter: AGENT_MORGAN, penempatan: pen });
+  pastikan(st.lengan!.dep!.every(Number.isFinite), 'NaN');
+  const tangan = tanganLayar(st, 'dep', pen);
+  pastikan(tangan.x > 0.3 * 1080, 'lengan harus mengarah ke benda (kanan)');
+  const spec = { ...SPEC_CONTOH, pemeran: [AGENT_MORGAN], adegan: [{ id: 'jauh', narasi: 'x', durasi: 4, tokoh: [{ id: 'morgan', x: 0.3, aksi: [a] }] }] } as unknown as Spec;
+  const h = cekAksiSpec(spec, () => true);
+  pastikan(h.peringatan.length === 1 && /di luar jangkauan/.test(h.peringatan[0]) && !h.masalah.length, JSON.stringify(h));
+});
+uji('bobot 0 (sebelum menjangkau) → status sama persis', () => {
+  const a = B_AKSI();
+  pastikan(terapkanAksi(S_DASAR, [aktifBuka(a, a.mulai)], ctxS()) === S_DASAR, 'harus objek sama');
+});
+uji('menoleh + membuka bersamaan; tidak ada benda saat disederhanakan (mode existing)', () => {
+  const r = rencanakanAksi({ ...T_DASAR, aksi: [HEAD, { ...BUKA, mulai: 1, posisi: { x: 0.66, y: 0.55 } } as AksiTokoh] });
+  pastikan(r.khusus.length === 2 && !r.peringatan.length, kode(r).join());
+  const ex = rencanakanAksi({ ...T_DASAR, modeAnimasi: 'existing', aksi: [BUKA] });
+  pastikan(!ex.khusus.length && /dokumen TIDAK digambar/.test(ex.peringatan[0].pesan), 'existing: benda tidak digambar (jujur)');
 });
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);

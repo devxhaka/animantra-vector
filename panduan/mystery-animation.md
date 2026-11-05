@@ -8,7 +8,7 @@ tambahan yang menimpa bagian tubuh tertentu selama aksi berjalan. Tidak ada rend
 |---|---|---|---|
 | `turn-head` | kepala | **tersedia** (Phase 2B) | arah mata (+ ekspresi) saja; kepala tidak berputar |
 | `flashlight-sweep` | lengan `dep`/`bel` | **tersedia** (Phase 2C) | pose `menunjuk` (selalu tangan depan); TANPA senter/sinar/gerak menyapu |
-| `open-object` | lengan `dep`/`bel` | belum (Phase 2D) | pose `meraih` → `berpikir`; benda TIDAK digambar & TIDAK terbuka |
+| `open-object` | lengan `dep`/`bel` | **tersedia** (Phase 2D) | pose `meraih` → `berpikir`; benda TIDAK digambar & TIDAK terbuka |
 
 ## Data (semua opsional, waktu dalam DETIK relatif awal adegan)
 ```jsonc
@@ -73,6 +73,34 @@ Contoh:
 { "jenis": "flashlight-sweep", "mulai": 0.4, "durasi": 2.6, "dari": { "x": 0.9, "y": 0.32 }, "ke": { "x": 0.78, "y": 0.62 } }
 ```
 
+## `open-object`
+| Field | Wajib | Nilai | Keterangan |
+|---|---|---|---|
+| `benda` | ya | `buku` / `map` / `dokumen` | gambar bawaan prosedural |
+| `posisi` | ya | `{x, y}` layar 0..1 | **pusat benda saat terbuka** (= engsel) |
+| `mulai`, `durasi` | ya | detik | durasi minimum wajar 0,8 dtk |
+| `skala` | tidak | bawaan 1 | ukuran benda |
+| `tangan` | tidak | `dep` (bawaan) / `bel` | lengan belakang jangkauannya lebih pendek |
+| `aset` | tidak | path SVG | gambar **sampul** kustom. Hilang/gagal dimuat → sampul bawaan + peringatan |
+| `tetapTerbuka` | tidak | bawaan `true` | `false` = menutup lagi di akhir aksi |
+
+Urutan (porsi durasi): **jangkau** 0–35% → **sentuh** tepi panel 35–45% → **buka**: panel berputar 0→180°
+dan tangan mengikuti tepinya 45–85% → **lepas** 85–100%.
+- Saat tertutup, benda menempati separuh sisi yang **jauh** dari tokoh; panel terbuka ke arah tokoh.
+- Benda tampil **sepanjang adegan** (tertutup sebelum aksi, terbuka sesudahnya bila `tetapTerbuka`) dan
+  digambar **di belakang** tokoh, sehingga tangan menutupi benda saat menyentuh.
+- Bila disederhanakan ke pose lama (mode `existing`/fallback), benda **tidak** digambar (sesuai peringatan).
+- **Jangkauan:** `cek` menghitung apakah tangan bisa mencapai tepi panel tertutup & terbuka. Bila tidak:
+  peringatan `di-luar-jangkauan`, dan saat render IK di-clamp (lengan lurus ke arah benda, tidak menyentuh).
+  Patokan untuk Agent Morgan (skala 1, tangan depan, benda bawaan): benda setinggi **dada sampai perut**
+  (`posisi.y` kira-kira kaki − 0,3 s.d. kaki − 0,26) dan **dekat badan** (sekitar 0,12–0,18 lebar layar dari kaki).
+  Benda di atas meja: letakkan meja sebagai `aset` dengan bagian atas sejajar sisi bawah benda.
+
+Contoh (Morgan di x 0,42, menghadap kanan):
+```json
+{ "jenis": "open-object", "mulai": 0.3, "durasi": 2.4, "benda": "buku", "posisi": { "x": 0.58, "y": 0.53 } }
+```
+
 ## Aturan umum
 - **Satu bagian tubuh, satu aksi.** Bila dua aksi memakai bagian yang sama dan waktunya tumpang tindih,
   aksi yang **mulai belakangan** yang dipakai (seri → yang lebih akhir di daftar). `cek` memberi peringatan.
@@ -100,10 +128,14 @@ Diukur dengan 10 render terpisah per frame, dibandingkan piksel per piksel:
 | `disederhanakan` | · info | mode `existing` |
 | `aset-hilang` | ! peringatan | memakai gambar bawaan |
 | `tumpang-tindih`, `melewati-adegan`, `terlalu-singkat` | ! peringatan | tetap jalan |
+| `di-luar-jangkauan` | ! peringatan | IK di-clamp; tangan tidak menyentuh benda |
 
 ## Lokasi kode
 - `shared/aksi.ts`: registri (bagian tubuh, validasi, nilai bawaan, fallback)
 - `remotion/karakter/aksi/resolver.ts`: routing & timeline (murni)
 - `remotion/karakter/aksi/terapkan.ts`: menerapkan aksi aktif ke status tokoh (murni)
 - `remotion/karakter/aksi/ik.ts`: FK, IK dua sendi (clamp), layar↔lokal, bidikan (murni)
+- `remotion/karakter/aksi/benda.ts`: geometri & timeline benda (satu sumber untuk gambar & target tangan)
+- `remotion/karakter/aksi/Benda.tsx`: gambar buku/map/dokumen
+- `remotion/karakter/aksi/asetSvg.tsx`: muat & bersihkan SVG kustom (senter, sampul)
 - `remotion/karakter/Tokoh.tsx`: `geometriRig`, `sudutLenganDasar`, `StatusTokoh.putarKepala/lengan/pegang` (opsional)

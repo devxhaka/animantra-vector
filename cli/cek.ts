@@ -4,6 +4,8 @@ import { skemaSpec } from './skema';
 import { DIR } from '../server/jalur';
 import { formatMisteri } from '../shared/formats';
 import { dedupPeringatan, rencanakanAksi } from '../remotion/karakter/aksi/resolver';
+import { periksaJangkauan } from '../remotion/karakter/aksi/terapkan';
+import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
 import type { Spec } from '../shared/tipe';
 
 /** Validasi spec.json + keberadaan berkas. Cetak masalah dalam bahasa yang bisa langsung diperbaiki. */
@@ -112,6 +114,12 @@ export function cekAksiSpec(spec: Partial<Spec>, adaBerkas: (p: string) => boole
         asetHilang,
         karakter: spec.pemeran?.find((p) => p.id === tk.id),
       });
+      const karakter = spec.pemeran?.find((p) => p.id === tk.id) ?? KARAKTER_CADANGAN;
+      for (const r of rencana.khusus)
+        if (r.aksi.jenis === 'open-object') {
+          const pesan = periksaJangkauan(tk, r.aksi, karakter, { lebar: spec.lebar ?? 1080, tinggi: spec.tinggi ?? 1920 });
+          if (pesan) rencana.peringatan.push({ kode: 'di-luar-jangkauan', tingkat: 'peringatan', indeks: r.indeks, jenis: 'open-object', pesan });
+        }
       for (const p of dedupPeringatan(rencana.peringatan)) {
         const baris = `adegan[${i}] "${a.id}" ${tk.id}${p.indeks !== undefined ? ` aksi #${p.indeks}` : ''}: ${p.pesan}`;
         (p.tingkat === 'masalah' ? masalah : p.tingkat === 'peringatan' ? peringatan : info).push(baris);

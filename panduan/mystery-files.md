@@ -16,7 +16,7 @@ tokoh, TTS, subtitle karaoke, antrean job, dan pustaka aset semuanya dipakai ula
 | Animasi tokoh hibrida: fondasi, routing, fallback | `shared/aksi.ts`, `remotion/karakter/aksi/` | Phase 2A ✓ |
 | Aksi `turn-head` | `remotion/karakter/aksi/terapkan.ts` | Phase 2B ✓ |
 | Aksi `flashlight-sweep` (+ FK/IK, bidikan) | `remotion/karakter/aksi/terapkan.ts`, `ik.ts` | Phase 2C ✓ |
-| Aksi `open-object` | `remotion/karakter/aksi/` | Phase 2D (belum; fallback pose lama) |
+| Aksi `open-object` (buku/map/dokumen, cek jangkauan) | `remotion/karakter/aksi/benda.ts`, `Benda.tsx` | Phase 2D ✓ |
 | Mesin sinematik (kamera, cahaya, parallax, bukti) | `remotion/sinematik/` | Phase 3 (belum) |
 | Kontrol studio khusus mystery + tab Pustaka | `studio/src/` | Phase 4 (belum) |
 
