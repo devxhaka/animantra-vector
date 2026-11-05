@@ -19,6 +19,7 @@ const { values: o } = parseArgs({
     pesan: { type: 'string' },
     detik: { type: 'string' },
     menit: { type: 'string' },
+    agen: { type: 'string' },
     'tanpa-buka': { type: 'boolean' },
     'tanpa-selesai': { type: 'boolean' },
   },
@@ -61,12 +62,15 @@ const PERINTAH: Record<string, () => Promise<void>> = {
       console.error('Studio belum jalan. Jalankan dulu: node studio.mjs server');
       process.exit(1);
     }
+    // --agen gemini → badge studio menampilkan "Gemini terhubung".
+    const agen = o.agen === 'gemini' ? 'gemini' : 'claude';
+    const panduan = agen === 'gemini' ? 'GEMINI.md' : 'CLAUDE.md';
     const batas = Date.now() + Number(o.menit ?? 25) * 60_000;
-    console.log('Mendengarkan pesanan dari studio…');
+    console.log(`Mendengarkan pesanan dari studio… (agen: ${agen})`);
     while (Date.now() < batas) {
       let r;
       try {
-        r = await api('/api/claude/dengar?detik=25');
+        r = await api(`/api/claude/dengar?detik=25&agen=${agen}`);
       } catch {
         await new Promise((s) => setTimeout(s, 3000));
         continue;
@@ -76,14 +80,14 @@ const PERINTAH: Record<string, () => Promise<void>> = {
         console.log('\n=== PESANAN BARU ===');
         console.log(JSON.stringify(pesanan, null, 2));
         console.log(
-          `\nKerjakan sesuai CLAUDE.md (bagian "${job.jenis === 'revisi' ? 'Mengerjakan revisi' : 'Membuat video baru'}").` +
+          `\nKerjakan sesuai ${panduan} (bagian "${job.jenis === 'revisi' ? 'Mengerjakan revisi' : 'Membuat video baru'}").` +
             `\nJob: ${job.id}  ·  Folder: videos/${job.slug}` +
-            `\nSetelah selesai, jalankan lagi: node studio.mjs listen (di background).`,
+            `\nSetelah selesai, jalankan lagi: node studio.mjs listen --agen ${agen} (di background).`,
         );
         return;
       }
     }
-    console.log('TIDAK ADA PESANAN dalam 25 menit. Jalankan lagi `node studio.mjs listen` di background untuk tetap terhubung.');
+    console.log(`TIDAK ADA PESANAN dalam 25 menit. Jalankan lagi \`node studio.mjs listen --agen ${agen}\` di background untuk tetap terhubung.`);
   },
 
   async progress() {
@@ -162,7 +166,7 @@ const PERINTAH: Record<string, () => Promise<void>> = {
     console.log(`Animantra Studio CLI — node studio.mjs <perintah>
 
   server [--tanpa-buka]           Nyalakan studio lokal & buka browser
-  listen [--menit 25]             Tunggu pesanan dari studio (jalankan di background)
+  listen [--menit 25] [--agen gemini|claude]  Tunggu pesanan dari studio (jalankan di background)
   progress --job ID --tahap T --status mulai|selesai|lewati [--log "..."] [--persen N]
   log --job ID --teks "..."       Tambah baris log di studio
   cek --job ID                    Validasi spec.json & berkas aset

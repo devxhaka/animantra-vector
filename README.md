@@ -43,6 +43,47 @@ Render pertama akan mengunduh Chrome Headless milik Remotion secara otomatis (±
 7. Tab **Gaya Saya** untuk mengatur warna, huruf, bentuk, nama seri, dan logo. Klik
    **Simpan & pakai**, maka gaya itu otomatis dipakai di video berikutnya.
 
+## Pakai AI lain (tanpa langganan Claude Pro)
+
+Claude Code butuh langganan Pro/Max atau API berbayar. Supaya studio tetap bisa
+dipakai tanpa itu, ada dua jalur lain:
+
+| Jalur | Yang dibutuhkan | Cara kerja |
+|---|---|---|
+| **Gemini CLI** (gratis) | Akun Google, `npm install -g @google/gemini-cli` | Otomatis penuh seperti Claude: ketik `/buka-studio` |
+| **Mode Tempel** (chat gratis apa saja) | Akun Gemini / ChatGPT / Claude gratis (web) | Salin prompt → tempel ke chat → tempel jawabannya → render lokal |
+
+### Gemini CLI (otomatis, gratis)
+
+1. Pasang dari https://github.com/google-gemini/gemini-cli (atau `npm install -g @google/gemini-cli`).
+2. Buka folder ini di terminal, jalankan `gemini`, lalu login akun Google (`/auth`).
+   Kuota gratis harian berlaku (saat ini ±1.000 permintaan/hari untuk akun pribadi).
+3. Ketik **/buka-studio**. Perintah ini (`.gemini/commands/buka-studio.toml`)
+   menyalakan server + `listen --agen gemini`, dan badge di pojok kanan atas
+   berubah menjadi **Gemini terhubung**. Aturan kerja lengkapnya ada di `GEMINI.md`
+   (dibaca otomatis oleh Gemini CLI).
+4. Buat video dari form seperti biasa — riset, naskah, suara, gambar, dan render
+   dikerjakan Gemini di chat.
+
+### Mode Tempel (Gemini web, ChatGPT gratis, Claude gratis)
+
+Chat gratis di web tidak bisa menjalankan perintah di komputermu (tidak ada agen
+lokal), jadi naskahnya dibuat dengan salin-tempel:
+
+1. Buat pesanan seperti biasa di studio. Di kartu pesanan, klik **Salin prompt**.
+2. Tempel prompt itu ke chat gratis (Gemini / ChatGPT / Claude). Chat menjawab
+   dengan blok ```json (spec), ```svg (aset), dan ```text (caption).
+3. Di kartu yang sama klik **Tempel hasil**, tempel jawaban chat, lalu **Simpan & cek**.
+   Studio memeriksa spec-nya; kalau ada yang salah (misal aset tidak ada), pesannya
+   ditampilkan dan bisa ditempel ulang.
+4. Klik **Render di komputer ini** — suara (TTS) dan render jalan lokal, tanpa agen.
+   Revisi tetap butuh agen (Claude/Gemini CLI) atau edit spec + render ulang.
+
+Jujur saja batasnya: Mode Tempel tidak bisa riset dengan pencarian web (chat gratis
+tidak menjelajah folder dan file lokal), dan tidak ada cek gambar otomatis — kamu
+yang menilai hasil akhirnya dari video yang sudah jadi. Untuk topik yang butuh
+fakta akurat, periksa dulu angka/tanggal di jawaban chat sebelum ditempel.
+
 ### Mystery Files (format **Mystery Storytelling**)
 Video misteri sinematik dengan tokoh tetap **Agent Morgan** dan gaya gelap teal/amber "Mystery Files".
 Setiap episode wajib riset bersumber yang memisahkan fakta, hipotesis, legenda, spekulasi, dan hal yang

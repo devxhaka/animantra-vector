@@ -31,9 +31,22 @@ export function App() {
         <div className="jalur" title={status?.proyek}>
           {status?.proyek}
         </div>
-        <div className={'koneksi ' + (status?.terhubung ? 'ya' : 'tidak')} title={status?.terhubung ? (status.bekerja ? 'Claude sedang mengerjakan video' : 'Claude siap menerima pesanan') : 'Buka Claude (tab Code) di folder ini lalu ketik "buka studio"'}>
+        <div
+          className={'koneksi ' + (status?.terhubung ? 'ya' : 'tidak')}
+          title={
+            status?.terhubung
+              ? status.agen === 'gemini'
+                ? status.bekerja
+                  ? 'Gemini sedang mengerjakan video'
+                  : 'Gemini siap menerima pesanan'
+                : status.bekerja
+                  ? 'Claude sedang mengerjakan video'
+                  : 'Claude siap menerima pesanan'
+              : 'Buka Claude (tab Code) di folder ini lalu ketik "buka studio", atau jalankan Gemini CLI lalu ketik "/buka-studio"'
+          }
+        >
           <span className="titik" />
-          {status == null ? 'Memeriksa…' : status.terhubung ? 'Chat Claude terhubung' : 'Chat Claude terputus'}
+          {status == null ? 'Memeriksa…' : status.terhubung ? (status.agen === 'gemini' ? 'Gemini terhubung' : 'Chat Claude terhubung') : 'Agen terputus'}
         </div>
       </header>
       {tab === 'video' ? <HalamanVideo terhubung={!!status?.terhubung} /> : tab === 'gaya' ? <HalamanGaya /> : <HalamanKarakter />}

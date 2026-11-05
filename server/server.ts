@@ -5,7 +5,9 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { DIR, HOST, MODE_PRATINJAU, PORT, ROOT, URL_STUDIO } from './jalur';
 import * as S from './store';
-import { FORMATS, SUARA, formatBertokoh } from '../shared/formats';
+import { FORMATS, SUARA, formatBertokoh, formatDari, formatMisteri } from '../shared/formats';
+import { GAYA_BAWAAN } from '../shared/gaya-bawaan';
+import { buatPromptTempel, uraiTempelan } from '../shared/prompt-tempel';
 import type { FormBaru, Gaya, Job } from '../shared/tipe';
 import { azureSiap, daftarSuaraAzure, ttsAzure } from './azure';
 import { SUARA_EDGE, edgeSiap, ttsEdge } from './edge';
@@ -15,10 +17,11 @@ const app = express();
 app.use(express.json({ limit: '15mb' }));
 
 // ------------------------------------------------------------------
-// Status koneksi Claude
+// Status koneksi agen (Claude Code / Gemini CLI)
 // ------------------------------------------------------------------
 let pendengar = 0; // long-poll `studio listen` yang sedang terbuka
 let kontakTerakhir = 0; // terakhir CLI menghubungi server
+let agenTerhubung: string | null = null; // 'claude' | 'gemini' (dari `listen --agen ...`)
 const tunggu: Array<() => void> = []; // resolver long-poll
 const prosesRender = new Map<string, ChildProcess>();
 
@@ -27,7 +30,9 @@ function statusClaude() {
   const aktif = S.daftarJob().find((j) => j.status === 'dikerjakan' && j.jenis !== 'render-ulang');
   const baruSaja = Date.now() - kontakTerakhir < 45_000;
   const kerja = !!aktif && Date.now() - new Date(aktif.diperbarui).getTime() < 20 * 60_000;
-  return { terhubung: pendengar > 0 || baruSaja || kerja, mendengar: pendengar > 0, bekerja: !!aktif };
+  const terhubung = pendengar > 0 || baruSaja || kerja;
+  if (!terhubung) agenTerhubung = null;
+  return { terhubung, mendengar: pendengar > 0, bekerja: !!aktif, agen: terhubung ? (agenTerhubung ?? 'claude') : null };
 }
 const bangunkan = () => tunggu.splice(0).forEach((f) => f());
 
@@ -261,10 +266,136 @@ app.post('/api/jobs/:id/tutup', (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- dipanggil CLI Claude ----
+// ------------------------------------------------------------------
+// Mode Tempel: naskah dari chat AI gratis (Gemini web, ChatGPT gratis,
+// Claude gratis) — salin prompt, tempel jawaban, render lokal.
+// ------------------------------------------------------------------
+function promptUntukJob(j: Job): string {
+  const pesanan = safeJson(path.join(S.dirVideo(j.slug), 'pesanan.json'));
+  const fmt = formatDari(j.form.format);
+  const gaya = (pesanan?.gaya as Gaya | undefined) ?? S.ambilGaya(j.form.gayaId) ?? S.ambilGaya(S.gayaAktifId()) ?? GAYA_BAWAAN;
+  const semuaKarakter = S.daftarKarakter();
+  const pemeran = (pesanan?.pemeran as { id: string }[] | undefined)?.map((p) => semuaKarakter.find((k) => k.id === p.id)).filter((k): k is NonNullable<typeof k> => !!k)
+    ?? (j.form.pemeran ?? []).map((id) => semuaKarakter.find((k) => k.id === id)).filter((k): k is NonNullable<typeof k> => !!k);
+  return buatPromptTempel({
+    format: fmt,
+    topik: j.form.topik,
+    durasiTarget: j.form.durasi,
+    gaya,
+    suara: j.form.suara,
+    musik: j.form.musik,
+    pemeran,
+    sudut: pesanan?.sudut ?? j.form.sudut,
+    nuansa: pesanan?.nuansa ?? j.form.nuansa,
+    misteri: formatMisteri(j.form.format),
+  });
+}
+
+app.get('/api/jobs/:id/prompt-tempel', (req, res) => {
+  const j = S.ambilJob(req.params.id);
+  if (!j) return res.status(404).json({ galat: 'Job tidak ada' });
+  if (j.jenis !== 'baru') return res.status(400).json({ galat: 'Mode Tempel hanya untuk video baru' });
+  res.json({ prompt: promptUntukJob(j) });
+});
+
+app.post('/api/jobs/:id/tempel', async (req, res) => {
+  const j = S.ambilJob(req.params.id);
+  if (!j) return res.status(404).json({ galat: 'Job tidak ada' });
+  if (j.jenis !== 'baru') return res.status(400).json({ galat: 'Mode Tempel hanya untuk video baru' });
+  const teks = String(req.body?.teks ?? '');
+  if (!teks.trim()) return res.status(400).json({ galat: 'Tempel dulu jawaban dari chat' });
+  const hasil = uraiTempelan(teks);
+  if (!hasil.spec) return res.status(400).json({ galat: hasil.galat.join(' ') });
+  // Nama file aset hanya boleh di dalam folder video (cegah path traversal dari tempelan).
+  const namaAsetAman = /^[a-z]+\/[A-Za-z0-9._-]+\.svg$/;
+  const asetJahat = hasil.aset.find((a) => !namaAsetAman.test(a.file));
+  if (asetJahat) return res.status(400).json({ galat: `Nama file aset tidak diizinkan: ${asetJahat.file} (pakai aset/nama.svg atau latar/nama.svg)` });
+
+  const pesanan = S.siapkanFolder(j);
+  const dir = S.dirVideo(j.slug);
+  const spec = hasil.spec as Record<string, unknown>;
+  // Kunci yang tidak boleh diubah chat: format, ukuran, dan gaya (gaya dikunci per video).
+  spec.format = j.form.format;
+  spec.fps = 30;
+  spec.lebar = 1080;
+  spec.tinggi = 1920;
+  spec.gaya = pesanan.gaya;
+  spec.logo = pesanan.logo ?? null;
+  if (pesanan.pemeran) spec.pemeran = pesanan.pemeran;
+  const musik = spec.musik as { file?: string } | null | undefined;
+  if (musik?.file && !fs.existsSync(path.join(DIR.musik, path.basename(musik.file)))) {
+    spec.musik = null; // file musik tidak ada di folder musik/ → tanpa musik, bukan gagal
+  }
+  fs.writeFileSync(path.join(dir, 'spec.json'), JSON.stringify(spec, null, 2));
+  for (const a of hasil.aset) {
+    const target = path.join(dir, a.file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, a.isi);
+  }
+  if (hasil.caption) fs.writeFileSync(path.join(dir, 'caption.txt'), hasil.caption);
+  if (hasil.riset) fs.writeFileSync(path.join(dir, 'riset.md'), hasil.riset);
+
+  const { periksaSpec } = await import('../cli/cek');
+  const periksa = periksaSpec(dir);
+  if (!periksa.ok) return res.status(400).json({ galat: periksa.masalah.join('; ') });
+
+  j.mode = 'tempel';
+  j.tahap.riset = 'selesai';
+  j.tahap.naskah = 'selesai';
+  j.tahap.model = 'selesai';
+  j.tahap.audio = spec.musik ? 'selesai' : 'lewati';
+  j.tahap.cek = 'lewati'; // cek gambar dilakukan pengguna dari video akhirnya
+  j.status = 'antre';
+  j.tahapAktif = null;
+  S.tambahLog(j, 'Naskah ditempel dari chat (Mode Tempel) — siap render di komputer ini');
+  S.simpanJob(j);
+  res.json({ job: j, saran: periksa.saran });
+});
+
+/** Render lokal tanpa agen: suara (tts) dulu, lalu render. Dipakai Mode Tempel. */
+function jalankanTtsLaluRender(j: Job) {
+  j.status = 'dikerjakan';
+  j.tahapAktif = 'suara';
+  S.tambahLog(j, 'Render lokal dimulai: suara, lalu render');
+  S.simpanJob(j);
+  const jalankan = (perintah: string, lanjut?: () => void) => {
+    const p = spawn(process.execPath, [path.join(ROOT, 'studio.mjs'), perintah, '--job', j.id], { cwd: ROOT, stdio: 'ignore' });
+    prosesRender.set(j.id, p);
+    p.on('exit', (code) => {
+      prosesRender.delete(j.id);
+      const now = S.ambilJob(j.id);
+      if (!now) return;
+      if (code !== 0) {
+        if (now.status === 'dikerjakan') {
+          now.status = 'gagal';
+          now.pesanGagal = `${perintah === 'tts' ? 'Suara' : 'Render'} berhenti (kode ${code}). Lihat log.`;
+          S.simpanJob(now);
+        }
+        return;
+      }
+      lanjut?.();
+    });
+  };
+  jalankan('tts', () => jalankan('render'));
+}
+
+app.post('/api/jobs/:id/render-lokal', (req, res) => {
+  const j = S.ambilJob(req.params.id);
+  if (!j) return res.status(404).json({ galat: 'Job tidak ada' });
+  if (j.mode !== 'tempel') return res.status(400).json({ galat: 'Render lokal hanya untuk job Mode Tempel' });
+  if (j.tahap.naskah !== 'selesai') return res.status(400).json({ galat: 'Tempel dulu naskahnya dari chat' });
+  if (j.status === 'selesai') return res.status(400).json({ galat: 'Video sudah selesai' });
+  if (prosesRender.has(j.id)) return res.json(j); // sudah berjalan
+  jalankanTtsLaluRender(j);
+  res.json(j);
+});
+
+// ---- dipanggil CLI agen (Claude Code / Gemini CLI) ----
 app.get('/api/claude/dengar', async (req, res) => {
   kontak();
-  const ambil = () => S.daftarJob().find((j) => j.status === 'antre' && j.jenis !== 'render-ulang');
+  if (req.query.agen === 'gemini' || req.query.agen === 'claude') agenTerhubung = String(req.query.agen);
+  // Job Mode Tempel tidak diambil agen: naskahnya sudah ditempel, rendernya lokal.
+  const ambil = () => S.daftarJob().find((j) => j.status === 'antre' && j.jenis !== 'render-ulang' && j.mode !== 'tempel');
   let j = ambil();
   if (!j) {
     pendengar++;

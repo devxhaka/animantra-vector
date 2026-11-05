@@ -1,7 +1,7 @@
 import React from 'react';
 import type { FormatDef, Gaya, Job, Karakter, VideoMeta } from '../../shared/tipe';
 
-export type Status = { terhubung: boolean; mendengar: boolean; bekerja: boolean; proyek: string; platform: string };
+export type Status = { terhubung: boolean; mendengar: boolean; bekerja: boolean; agen: 'claude' | 'gemini' | null; proyek: string; platform: string };
 export type Opsi = {
   formats: FormatDef[];
   grupSuara: { penyedia: string; nama: string; suara: { nilai: string; nama: string; ket: string; bisa: boolean }[] }[];
@@ -40,6 +40,9 @@ export const api = {
   tutupJob: (id: string) => minta(`/api/jobs/${id}/tutup`, { json: {} }),
   revisi: (slug: string, teks: string) => minta<Job>(`/api/videos/${slug}/revisi`, { json: { teks } }),
   renderUlang: (slug: string) => minta<Job>(`/api/videos/${slug}/render-ulang`, { json: {} }),
+  promptTempel: (id: string) => minta<{ prompt: string }>(`/api/jobs/${id}/prompt-tempel`),
+  tempel: (id: string, teks: string) => minta<{ job: Job; saran: string[] }>(`/api/jobs/${id}/tempel`, { json: { teks } }),
+  renderLokal: (id: string) => minta<Job>(`/api/jobs/${id}/render-lokal`, { json: {} }),
   finder: (slug: string) => minta(`/api/videos/${slug}/finder`, { json: {} }),
   karakter: () => minta<Karakter[]>('/api/karakter'),
   simpanKarakter: (k: Karakter, idLama?: string) => minta<Karakter>(`/api/karakter${idLama ? `?idLama=${encodeURIComponent(idLama)}` : ''}`, { json: k }),

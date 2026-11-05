@@ -8,25 +8,31 @@ import { periksaJangkauan } from '../remotion/karakter/aksi/terapkan';
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
 import type { Spec } from '../shared/tipe';
 
-/** Validasi spec.json + keberadaan berkas. Cetak masalah dalam bahasa yang bisa langsung diperbaiki. */
-export function cekSpec(dir: string): boolean {
+export type HasilPeriksa = { ok: boolean; masalah: string[]; saran: string[]; info: string[] };
+
+/** Validasi spec.json + keberadaan berkas, sebagai data (dipakai CLI & Mode Tempel). */
+export function periksaSpec(dir: string): HasilPeriksa {
   const f = path.join(dir, 'spec.json');
-  if (!fs.existsSync(f)) {
-    console.error('✗ spec.json belum ada di ' + dir);
-    return false;
-  }
+  if (!fs.existsSync(f)) return { ok: false, masalah: ['spec.json belum ada di ' + dir], saran: [], info: [] };
   let data: unknown;
   try {
     data = JSON.parse(fs.readFileSync(f, 'utf8'));
   } catch (e) {
-    console.error('✗ spec.json bukan JSON valid: ' + (e as Error).message);
-    return false;
+    return { ok: false, masalah: ['spec.json bukan JSON valid: ' + (e as Error).message], saran: [], info: [] };
   }
+  return periksaSpecData(data, dir);
+}
+
+/** Validasi isi spec (sudah terurai) + keberadaan berkas di folder video. */
+export function periksaSpecData(data: unknown, dir: string): HasilPeriksa {
   const r = skemaSpec.safeParse(data);
   const masalah: string[] = [];
   const saran: string[] = [];
   if (!r.success) for (const i of r.error.issues) masalah.push(`${i.path.join('.')}: ${i.message}`);
-  const spec = data as any;
+  return periksaSpecLanjut(data as any, dir, masalah, saran);
+}
+
+function periksaSpecLanjut(spec: any, dir: string, masalah: string[], saran: string[]): HasilPeriksa {
   const ada = (p: string) => fs.existsSync(path.join(dir, p)) || (/^(musik|sfx)\//.test(p) && fs.existsSync(path.join(DIR.videos, '..', p)));
   for (const [i, a] of (spec.adegan ?? []).entries()) {
     for (const s of a.aset ?? []) if (!ada(s.file)) masalah.push(`adegan[${i}] aset tidak ada: ${s.file}`);
@@ -59,12 +65,26 @@ export function cekSpec(dir: string): boolean {
   const info = aksi.info;
 
   const total = (spec.adegan ?? []).reduce((s: number, a: any) => s + (a.durasi ?? 0), 0);
-  console.log(`Spec: ${spec.adegan?.length ?? 0} adegan · total ${total.toFixed(1)} dtk`);
+  return { ok: masalah.length === 0, masalah, saran, info };
+}
+
+/** Validasi spec.json + keberadaan berkas. Cetak masalah dalam bahasa yang bisa langsung diperbaiki. */
+export function cekSpec(dir: string): boolean {
+  const { ok, masalah, saran, info } = periksaSpec(dir);
+  const spec = (() => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(dir, 'spec.json'), 'utf8')) as any;
+    } catch {
+      return null;
+    }
+  })();
+  const total = (spec?.adegan ?? []).reduce((s: number, a: any) => s + (a.durasi ?? 0), 0);
+  console.log(`Spec: ${spec?.adegan?.length ?? 0} adegan · total ${total.toFixed(1)} dtk`);
   for (const m of masalah) console.log('  ✗ ' + m);
   for (const s of saran) console.log('  ! ' + s);
   for (const s of info) console.log('  · ' + s);
-  if (!masalah.length) console.log('✓ Spec valid');
-  return masalah.length === 0;
+  if (ok) console.log('✓ Spec valid');
+  return ok;
 }
 
 /** Bagian wajib riset.md untuk Mystery Files (lihat panduan/mystery-storytelling.md). */

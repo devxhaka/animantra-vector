@@ -284,7 +284,7 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
       {galat ? <p className="galat">{galat}</p> : null}
       {!terhubung ? (
         <p className="catatan">
-          Claude belum terhubung. Pesanan tetap masuk antrean. Buka Claude (tab Code) di folder <b>animantra-vector</b> lalu ketik <b>buka studio</b>.
+          Agen belum terhubung. Pesanan tetap masuk antrean. Buka Claude (tab Code) di folder <b>animantra-vector</b> lalu ketik <b>buka studio</b>, atau jalankan Gemini CLI lalu ketik <b>/buka-studio</b>. Tanpa langganan, pakai <b>Salin prompt</b> di kartu pesanan untuk chat gratis.
         </p>
       ) : null}
     </aside>
