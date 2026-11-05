@@ -98,6 +98,8 @@ export type Job = {
   slug: string; // folder videos/<slug>
   judul: string; // judul sementara (topik) → diganti judul video
   form: FormBaru;
+  /** Cara pengerjaan: 'agen' (Claude/Gemini CLI mengerjakan) atau 'tempel' (naskah dari chat gratis, render lokal). */
+  mode?: 'agen' | 'tempel';
   revisi?: string;
   tahap: Record<KunciTahap, StatusTahap>;
   tahapAktif: KunciTahap | null;

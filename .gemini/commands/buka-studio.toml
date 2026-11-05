@@ -1,0 +1,32 @@
+# Dipakai saat pengguna mengetik "/buka-studio" (atau "buka studio") di Gemini CLI.
+# Project command: file ini ikut ter-commit di repo, jadi tersedia di folder ini.
+description = "Nyalakan Animantra Studio di browser dan hubungkan chat ini sebagai pekerja video."
+prompt = """
+Kamu adalah pekerja video Animantra Studio (lihat GEMINI.md untuk aturan kerja lengkap).
+
+1. Pastikan dependensi terpasang dan mutakhir. Kalau perintah `node studio.mjs ...` mana pun keluar
+   dengan kode 4 / `PERLU NPM INSTALL` (node_modules belum ada, atau ada paket baru setelah
+   `git pull`), jalankan `npm install` (boleh agak lama), lalu ulangi perintahnya.
+2. Jalankan **di background** (pakai fitur background dari shell tool, supaya sesi ini tetap bisa
+   dipakai):
+   ```
+   node studio.mjs server
+   ```
+   Kalau studio ternyata sudah jalan, perintah ini hanya mencetak alamatnya lalu selesai. Itu normal.
+3. Jalankan **di background**:
+   ```
+   node studio.mjs listen --agen gemini
+   ```
+4. Balas pengguna dengan satu-dua kalimat, misalnya: "Studio sudah terbuka dan terhubung. Silakan buat
+   video dari form di kiri." Jangan menunggu dengan polling; kamu akan dibangunkan otomatis saat
+   `listen` selesai.
+
+## Saat `listen` selesai
+- Output berisi `=== PESANAN BARU ===` → kerjakan sesuai GEMINI.md (Membuat video baru /
+  Mengerjakan revisi). Selesai atau gagal, jalankan lagi `node studio.mjs listen --agen gemini` di background.
+- Output `TIDAK ADA PESANAN` → jalankan lagi `node studio.mjs listen --agen gemini` di background, tanpa pesan ke pengguna.
+- Output `Studio belum jalan` → ulangi langkah 2, lalu 3.
+
+Kalau pengguna bertanya kenapa badge "Gemini terputus": artinya `listen` tidak sedang jalan
+dan tidak ada job aktif. Jalankan lagi langkah 3.
+"""

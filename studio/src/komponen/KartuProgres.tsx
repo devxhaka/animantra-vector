@@ -5,7 +5,7 @@ import { TAHAP, type Job } from '../../../shared/tipe';
 import { formatBertokoh, formatDari } from '../../../shared/formats';
 
 const STATUS: Record<Job['status'], string> = {
-  antre: 'menunggu Claude',
+  antre: 'menunggu agen',
   dikerjakan: 'dikerjakan',
   selesai: 'selesai',
   gagal: 'gagal',
@@ -15,7 +15,44 @@ const JENIS: Record<Job['jenis'], string> = { baru: '', revisi: 'Revisi · ', 'r
 
 export function KartuProgres({ job, terhubung, onBerubah }: { job: Job; terhubung: boolean; onBerubah: () => void }) {
   const [logPenuh, setLogPenuh] = React.useState(false);
+  const [tempelBuka, setTempelBuka] = React.useState(false);
+  const [tempelan, setTempelan] = React.useState('');
+  const [tempelGalat, setTempelGalat] = React.useState('');
+  const [tempelSaran, setTempelSaran] = React.useState<string[]>([]);
+  const [tempelKirim, setTempelKirim] = React.useState(false);
+  const [salin, setSalin] = React.useState('');
   const opsi = useOpsi();
+  const bisaTempel = job.jenis === 'baru' && job.status === 'antre';
+  const siapRenderLokal = job.mode === 'tempel' && job.tahap.naskah === 'selesai' && job.status !== 'selesai';
+
+  const salinPrompt = async () => {
+    setTempelGalat('');
+    try {
+      const { prompt } = await api.promptTempel(job.id);
+      await navigator.clipboard.writeText(prompt);
+      setSalin('Prompt disalin — tempel ke Gemini / ChatGPT / Claude gratis ✓');
+      setTimeout(() => setSalin(''), 4000);
+    } catch (e) {
+      setTempelGalat((e as Error).message);
+    }
+  };
+  const kirimTempelan = async () => {
+    setTempelGalat('');
+    setTempelSaran([]);
+    if (!tempelan.trim()) return setTempelGalat('Tempel dulu jawaban dari chat.');
+    setTempelKirim(true);
+    try {
+      const r = await api.tempel(job.id, tempelan);
+      setTempelSaran(r.saran);
+      setTempelBuka(false);
+      setTempelan('');
+      onBerubah();
+    } catch (e) {
+      setTempelGalat((e as Error).message);
+    } finally {
+      setTempelKirim(false);
+    }
+  };
   const gagalSuara = job.status === 'gagal' && job.tahap.suara !== 'selesai' && job.tahap.naskah === 'selesai';
   const [suara, setSuara] = React.useState('');
   React.useEffect(() => {
@@ -45,10 +82,12 @@ export function KartuProgres({ job, terhubung, onBerubah }: { job: Job; terhubun
       </div>
       <div className="kp-tahap">
         {job.status === 'antre' ? (
-          terhubung ? (
+          job.mode === 'tempel' ? (
+            <>Naskah ditempel — siap render di komputer ini.</>
+          ) : terhubung ? (
             'Menunggu giliran…'
           ) : (
-            <>Menunggu Claude. Ketik <b>buka studio</b> di Claude (tab Code).</>
+            <>Menunggu agen. Ketik <b>buka studio</b> di Claude, <b>/buka-studio</b> di Gemini — atau pakai <b>Salin prompt</b> di bawah untuk chat gratis.</>
           )
         ) : job.status === 'gagal' ? (
           <span className="galat">Gagal: {job.pesanGagal}</span>
@@ -76,6 +115,46 @@ export function KartuProgres({ job, terhubung, onBerubah }: { job: Job; terhubun
         <div className="ulang-suara">
           <span className="label">Ulangi dengan suara (naskah tetap dipakai):</span>
           <PilihSuara opsi={opsi} nilai={suara} onUbah={setSuara} />
+        </div>
+      ) : null}
+      {bisaTempel ? (
+        <div className="tempel">
+          <div className="label">Tanpa langganan? Pakai chat gratis (Mode Tempel):</div>
+          <div className="baris-tombol">
+            <button className="tombol" onClick={salinPrompt}>
+              Salin prompt
+            </button>
+            <button className="tombol" onClick={() => setTempelBuka((v) => !v)}>
+              {tempelBuka ? 'Tutup' : 'Tempel hasil'}
+            </button>
+          </div>
+          {salin ? <p className="catatan">{salin}</p> : null}
+          {tempelBuka ? (
+            <div className="tempel-form">
+              <textarea
+                className="isian"
+                rows={8}
+                placeholder="Tempel jawaban dari Gemini / ChatGPT / Claude di sini (blok ```json spec, ```svg aset, ```text caption)…"
+                value={tempelan}
+                onChange={(e) => setTempelan(e.target.value)}
+              />
+              <div className="baris-tombol">
+                <button className="tombol utama" onClick={kirimTempelan} disabled={tempelKirim}>
+                  {tempelKirim ? 'Memeriksa…' : 'Simpan & cek'}
+                </button>
+              </div>
+              <p className="catatan">Alurnya: salin prompt → tempel ke chat gratis → salin jawabannya → tempel di sini → render di komputer ini.</p>
+            </div>
+          ) : null}
+          {tempelGalat ? <p className="galat">{tempelGalat}</p> : null}
+        </div>
+      ) : null}
+      {tempelSaran.length ? <p className="catatan">Catatan: {tempelSaran.join(' · ')}</p> : null}
+      {siapRenderLokal ? (
+        <div className="baris-tombol">
+          <button className="tombol utama" disabled={job.status === 'dikerjakan'} onClick={() => api.renderLokal(job.id).then(onBerubah).catch((e) => setTempelGalat((e as Error).message))}>
+            {job.status === 'dikerjakan' ? 'Merender…' : 'Render di komputer ini'}
+          </button>
         </div>
       ) : null}
       <div className="baris-tombol">

@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { skemaSpec } from '../cli/skema';
-import { cekRisetMisteri } from '../cli/cek';
+import { cekRisetMisteri, periksaSpec } from '../cli/cek';
+import { buatPromptTempel, uraiTempelan } from '../shared/prompt-tempel';
 import { FORMATS, formatBertokoh, formatDari, formatMisteri } from '../shared/formats';
 import { GAYA_BAWAAN, GAYA_MYSTERY, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
 import { AGENT_MORGAN, KARAKTER_CONTOH, PAKAIAN_PILIHAN } from '../shared/karakter-bawaan';
@@ -619,6 +620,58 @@ uji('menoleh + membuka bersamaan; tidak ada benda saat disederhanakan (mode exis
   pastikan(r.khusus.length === 2 && !r.peringatan.length, kode(r).join());
   const ex = rencanakanAksi({ ...T_DASAR, modeAnimasi: 'existing', aksi: [BUKA] });
   pastikan(!ex.khusus.length && /dokumen TIDAK digambar/.test(ex.peringatan[0].pesan), 'existing: benda tidak digambar (jujur)');
+});
+
+console.log('Mode Tempel (chat gratis)');
+const PROMPT = buatPromptTempel({ format: FORMATS[0], topik: 'kenapa setrika bisa mati sendiri', durasiTarget: 50, gaya: GAYA_BAWAAN, suara: 'edge:id-ID-GadisNeural', musik: 'otomatis' });
+uji('prompt memuat panduan format, topik, durasi & gaya', () => {
+  for (const frasa of ['Kita Bongkar', 'kenapa setrika bisa mati sendiri', '50 detik', '"nama":', '```json', '```svg', '```text'])
+    pastikan(PROMPT.includes(frasa), 'kurang: ' + frasa);
+  pastikan(PROMPT.includes(JSON.stringify(GAYA_BAWAAN.warna.latar)), 'warna gaya tidak ikut');
+});
+const TEMPEL_LENGKAP = [
+  '```json',
+  JSON.stringify({ ...SPEC_CONTOH, judul: 'Kok setrika bisa mati sendiri?' }),
+  '```',
+  '```svg',
+  '<!-- file: aset/setrika.svg -->',
+  '<svg viewBox="0 0 100 100"><rect width="100" height="100"/></svg>',
+  '```',
+  '```text',
+  '=== CAPTION UTAMA ===\nSetrika mati sendiri? Ini alasannya!',
+  '```',
+].join('\n');
+uji('urai tempelan lengkap: spec + svg bernama + caption', () => {
+  const h = uraiTempelan(TEMPEL_LENGKAP);
+  pastikan(!h.galat.length, h.galat.join('; '));
+  pastikan(h.spec?.judul === 'Kok setrika bisa mati sendiri?', 'judul spec');
+  pastikan(h.aset.length === 1 && h.aset[0].file === 'aset/setrika.svg' && /viewBox/.test(h.aset[0].isi), JSON.stringify(h.aset));
+  pastikan(h.caption.includes('CAPTION UTAMA'), 'caption');
+});
+uji('urai tempelan tanpa blok kode → galat jelas', () => {
+  const h = uraiTempelan('ini cuma teks biasa tanpa blok');
+  pastikan(!h.spec && h.galat.length === 1 && /blok kode/.test(h.galat[0]), JSON.stringify(h.galat));
+});
+uji('urai tempelan json rusak → galat menyebut JSON', () => {
+  const h = uraiTempelan('```json\n{ bukan json\n```');
+  pastikan(!h.spec && h.galat.some((g) => /JSON/.test(g)), JSON.stringify(h.galat));
+});
+uji('svg tanpa nama file → nama otomatis aset/aset-1.svg', () => {
+  const h = uraiTempelan('```json\n' + JSON.stringify(SPEC_CONTOH) + '\n```\n```svg\n<svg viewBox="0 0 10 10"></svg>\n```');
+  pastikan(h.aset.length === 1 && h.aset[0].file === 'aset/aset-1.svg', JSON.stringify(h.aset));
+});
+uji('periksaSpec: spec contoh + aset + caption lolos; aset hilang ditolak', () => {
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'uji-tempel-'));
+  fs.mkdirSync(path.join(tmp2, 'contoh'), { recursive: true });
+  fs.writeFileSync(path.join(tmp2, 'spec.json'), JSON.stringify(SPEC_CONTOH));
+  fs.copyFileSync(path.join(process.cwd(), 'studio', 'public', 'contoh', 'pulpen.svg'), path.join(tmp2, 'contoh', 'pulpen.svg'));
+  fs.writeFileSync(path.join(tmp2, 'caption.txt'), 'caption');
+  const ok = periksaSpec(tmp2);
+  pastikan(ok.ok, ok.masalah.join('; '));
+  fs.rmSync(path.join(tmp2, 'contoh', 'pulpen.svg'));
+  const gagal = periksaSpec(tmp2);
+  pastikan(!gagal.ok && gagal.masalah.some((m) => /aset tidak ada/.test(m)), JSON.stringify(gagal.masalah));
+  fs.rmSync(tmp2, { recursive: true, force: true });
 });
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);
