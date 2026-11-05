@@ -22,7 +22,7 @@ export const KARAKTER_CONTOH: Karakter[] = [
     usia: 'remaja',
     pakaian: 'hijab-gamis',
     warna: { kulit: '#ebbf98', rambut: '#1f1a17', atasan: '#3f6e8c', bawahan: '#2c4a5e', penutup: '#e9e2d4', sepatu: '#3a2c25' },
-    suara: 'azure:id-ID-GadisNeural',
+    suara: 'edge:id-ID-GadisNeural',
   },
   {
     id: 'adik',
@@ -32,7 +32,7 @@ export const KARAKTER_CONTOH: Karakter[] = [
     usia: 'anak',
     pakaian: 'koko-kopiah',
     warna: { kulit: '#dca57c', rambut: '#1f1a17', atasan: '#f2efe6', bawahan: '#5b6b73', penutup: '#2b2b30', sepatu: '#4a3b30' },
-    suara: 'azure:id-ID-ArdiNeural',
+    suara: 'edge:id-ID-ArdiNeural',
   },
 ];
 

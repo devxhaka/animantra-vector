@@ -11,6 +11,7 @@ export type Opsi = {
   geminiSiap: boolean;
   elevenSiap: boolean;
   azureSiap: boolean;
+  edgeSiap: boolean;
 };
 export type DetailVideo = { meta: VideoMeta; caption: string; cuplikan: string[]; pesanan: any };
 

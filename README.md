@@ -10,7 +10,10 @@ Studio lokal untuk membuat video animasi vector vertikal (9:16) dengan **Remotio
    ```
    npm install
    ```
-3. Salin `.env.example` menjadi `.env`, lalu isi minimal satu key suara:
+3. **Suara langsung jalan tanpa key**: suara neural Microsoft **Gadis & Ardi** lewat layanan
+   Read Aloud Edge (otomatis aktif, bisa dimatikan dengan `EDGE_TTS=0`). Ini layanan **tidak resmi**:
+   bisa berubah atau diblokir Microsoft sewaktu-waktu, dan hanya untuk pemakaian pribadi (bukan SaaS).
+   Supaya tetap aman kalau Edge bermasalah, salin `.env.example` menjadi `.env`, lalu isi key cadangan:
    - **`AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION` (disarankan)**: suara penutur asli Indonesia
      **Gadis** & **Ardi**, gratis ±500 ribu karakter/bulan (paket F0), resmi, dan aman untuk SaaS.
      Cara dapat: portal.azure.com → *Create a resource* → **Speech service** → Pricing tier **Free F0**
@@ -19,7 +22,7 @@ Studio lokal untuk membuat video animasi vector vertikal (9:16) dengan **Remotio
      non-komersial dan wajib atribusi. `ELEVENLABS_MODEL=eleven_flash_v2_5` menghemat ±50% kredit.
      Suara dari Voice Library (termasuk suara asli Indonesia) muncul di studio setelah ditambahkan ke "My Voices".
    - `GEMINI_API_KEY` (https://aistudio.google.com/apikey), kuota harian gratis.
-   Kalau lebih dari satu diisi, urutan cadangannya: pilihan lo → Azure Gadis → ElevenLabs bawaan → Gemini.
+   Urutan cadangannya: pilihan lo → Edge → Azure → ElevenLabs bawaan → Gemini.
    Satu video selalu memakai satu suara yang sama dari awal sampai akhir.
    Tanpa key, video tetap jadi tapi tanpa suara.
 4. (Opsional) Taruh musik bebas royalti (MP3) di folder `musik/`. Beri nama sesuai suasana,
@@ -76,6 +79,7 @@ Buat file `.claude/settings.json` di folder ini:
 Buka sesi Claude Code (web) dengan repo ini, lalu ketik **buka studio**. CLI mengenali sesi cloud
 otomatis: server menerima akses dari **panel pratinjau** app Claude dan render memakai Chromium
 bawaan container. Studio dibuka lewat panel pratinjau, bukan `127.0.0.1`.
+- Suara Edge (tanpa key) butuh host `api.msedgeservices.com` diizinkan di **Akses jaringan**.
 - API key suara ditambahkan di pengaturan lingkungan cloud → **Variabel lingkungan**
   (`AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, dst.), dan domain layanannya di **Akses jaringan**.
   Berlaku di sesi baru.

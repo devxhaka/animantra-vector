@@ -35,7 +35,7 @@ Tulis log sebagai satu kalimat yang enak dibaca pengguna, misalnya "Riset selesa
 |---|---|
 | `riset` | Cari fakta yang benar (WebSearch bila perlu). Catat poin & sumber di `riset.md`. Jangan mengarang angka. |
 | `naskah` | Tulis `spec.json` (judul, adegan, narasi) + `caption.txt`. Lihat `panduan/spec.md`. Jalankan `node studio.mjs cek --job <ID>`. |
-| `suara` | `node studio.mjs tts --job <ID>`. Perintah ini melapor sendiri dan mengisi `suara` & `durasi` tiap adegan. Penyedia (Azure/ElevenLabs/Gemini) dipilih pengguna di form. Kredit dicek sebelum mulai; kalau kurang, otomatis pindah ke penyedia lain untuk **seluruh** video. Kalau keluar dengan `Semua penyedia suara gagal`, **jangan render tanpa suara diam-diam**: tandai `gagal` dengan alasan dari pesan itu (misal "Kredit ElevenLabs habis, pulih 6 Des"). |
+| `suara` | `node studio.mjs tts --job <ID>`. Perintah ini melapor sendiri dan mengisi `suara` & `durasi` tiap adegan. Penyedia (Edge tanpa key/Azure/ElevenLabs/Gemini) dipilih pengguna di form. Kredit dicek sebelum mulai; kalau kurang, otomatis pindah ke penyedia lain untuk **seluruh** video. Kalau keluar dengan `Semua penyedia suara gagal`, **jangan render tanpa suara diam-diam**: tandai `gagal` dengan alasan dari pesan itu (misal "Kredit ElevenLabs habis, pulih 6 Des"). |
 | `model` | Gambar aset SVG di `aset/` mengikuti `panduan/aset-vector.md`, lalu isi `aset`, `label`, `kamera`, `animasi` di spec. |
 | `cek` | `node studio.mjs still --job <ID> --detik 1,5,12,...` (1 titik per adegan). **Buka setiap PNG dengan Read** dan periksa (lihat "Cek gambar"). Perbaiki lalu ulangi bila perlu (maksimal 3 putaran). |
 | `audio` | Pilih musik & SFX dari `node studio.mjs audio`. Isi `musik` dan `sfx` di spec. |

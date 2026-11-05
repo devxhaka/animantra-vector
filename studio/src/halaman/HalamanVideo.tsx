@@ -261,7 +261,7 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
       {cerita ? <PeringatanSuara karakter={karakter.filter((k) => form.pemeran.includes(k.id))} narator={form.sudut === 'narator' ? form.suara : ''} /> : null}
       {opsi && !opsi.grupSuara.length ? (
         <p className="catatan">
-          Suara belum aktif: isi <code>AZURE_SPEECH_KEY</code>, <code>ELEVENLABS_API_KEY</code>, atau <code>GEMINI_API_KEY</code> di file <code>.env</code>. Tanpa itu video dibuat tanpa narasi suara.
+          Suara nonaktif: suara Edge dimatikan (<code>EDGE_TTS=0</code>) dan belum ada <code>AZURE_SPEECH_KEY</code>, <code>ELEVENLABS_API_KEY</code>, atau <code>GEMINI_API_KEY</code> di <code>.env</code>. Tanpa itu video dibuat tanpa narasi suara.
         </p>
       ) : null}
       {opsi?.kreditEleven && form.suara.startsWith('elevenlabs:') ? <KreditEleven k={opsi.kreditEleven} durasi={form.durasi} /> : null}

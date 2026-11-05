@@ -8,6 +8,7 @@ import * as S from './store';
 import { FORMATS, SUARA } from '../shared/formats';
 import type { FormBaru, Gaya, Job } from '../shared/tipe';
 import { azureSiap, daftarSuaraAzure, ttsAzure } from './azure';
+import { SUARA_EDGE, edgeSiap, ttsEdge } from './edge';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, modelEleven, sisaKreditEleven, ttsEleven } from './elevenlabs';
 
 const app = express();
@@ -41,6 +42,7 @@ app.get('/api/opsi', async (_req, res) => {
   const tidak = eleven.filter((v) => !v.bisa);
   const ops = (v: (typeof eleven)[number]) => ({ nilai: `elevenlabs:${v.id}`, nama: (v.indonesia ? '🇮🇩 ' : '') + v.nama, ket: v.ket, bisa: v.bisa });
   const grupSuara = [
+    ...(edgeSiap() ? [{ penyedia: 'edge', nama: 'Microsoft Edge · tanpa key', suara: SUARA_EDGE.map((v) => ({ nilai: `edge:${v.id}`, nama: '🇮🇩 ' + v.nama, ket: v.ket, bisa: true })) }] : []),
     ...(azure.length ? [{ penyedia: 'azure', nama: 'Microsoft Azure · penutur Indonesia', suara: azure.map((v) => ({ nilai: `azure:${v.id}`, nama: '🇮🇩 ' + v.nama, ket: v.ket, bisa: true })) }] : []),
     ...(bisa.length ? [{ penyedia: 'elevenlabs', nama: 'ElevenLabs', suara: bisa.map(ops) }] : []),
     ...(process.env.GEMINI_API_KEY ? [{ penyedia: 'gemini', nama: 'Gemini', suara: SUARA.map((v) => ({ nilai: `gemini:${v.nama}`, nama: v.nama, ket: v.ket, bisa: true })) }] : []),
@@ -55,6 +57,7 @@ app.get('/api/opsi', async (_req, res) => {
     geminiSiap: !!process.env.GEMINI_API_KEY,
     elevenSiap: elevenSiap(),
     azureSiap: azureSiap(),
+    edgeSiap: edgeSiap(),
   });
 });
 
@@ -72,6 +75,11 @@ app.post('/api/suara/coba', async (req, res) => {
   const ada = fs.readdirSync(dirCoba).find((f) => f.startsWith(dasar + '.'));
   if (ada) return res.json({ url: `/coba-suara/${ada}` });
   try {
+    if (penyedia === 'edge') {
+      const { mp3 } = await ttsEdge(KALIMAT_COBA, id);
+      fs.writeFileSync(path.join(dirCoba, dasar + '.mp3'), mp3);
+      return res.json({ url: `/coba-suara/${dasar}.mp3` });
+    }
     if (penyedia === 'azure') {
       const { data } = await ttsAzure(KALIMAT_COBA, id);
       fs.writeFileSync(path.join(dirCoba, dasar + '.wav'), data);
@@ -196,7 +204,7 @@ app.post('/api/jobs', (req, res) => {
     format: String(b.format || 'kita-bongkar'),
     topik: String(b.topik || '').trim(),
     durasi: Math.max(15, Math.min(180, Number(b.durasi) || 50)),
-    suara: String(b.suara || (azureSiap() ? 'azure:id-ID-GadisNeural' : elevenSiap() ? 'elevenlabs:EXAVITQu4vr4xnSDxMaL' : 'gemini:Kore')),
+    suara: String(b.suara || (edgeSiap() ? 'edge:id-ID-GadisNeural' : azureSiap() ? 'azure:id-ID-GadisNeural' : elevenSiap() ? 'elevenlabs:EXAVITQu4vr4xnSDxMaL' : 'gemini:Kore')),
     musik: String(b.musik || 'otomatis'),
     gayaId: String(b.gayaId || S.gayaAktifId()),
     ...(b.format === 'cerita'

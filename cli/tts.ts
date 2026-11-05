@@ -3,19 +3,21 @@ import path from 'node:path';
 import type { Job, Spec } from '../shared/tipe';
 import { lapor } from './api';
 import { azureSiap, ttsAzure } from '../server/azure';
+import { edgeSiap, ttsEdge } from '../server/edge';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, infoSuaraEleven, modelEleven, sisaKreditEleven, ttsEleven } from '../server/elevenlabs';
 
 const JEDA = 0.35; // detik napas di akhir tiap adegan
 
-type Penyedia = 'azure' | 'elevenlabs' | 'gemini';
+type Penyedia = 'edge' | 'azure' | 'elevenlabs' | 'gemini';
 export function uraiSuara(nilai: string): { penyedia: Penyedia; id: string } {
   const [p, ...sisa] = (nilai || '').split(':');
-  if ((p === 'azure' || p === 'elevenlabs' || p === 'gemini') && sisa.length) return { penyedia: p, id: sisa.join(':') };
+  if ((p === 'edge' || p === 'azure' || p === 'elevenlabs' || p === 'gemini') && sisa.length) return { penyedia: p, id: sisa.join(':') };
   return { penyedia: 'gemini', id: nilai || 'Kore' }; // format lama: "Kore"
 }
-const siap = (p: Penyedia) => (p === 'azure' ? azureSiap() : p === 'elevenlabs' ? elevenSiap() : !!process.env.GEMINI_API_KEY);
-const NAMA_PENYEDIA: Record<Penyedia, string> = { azure: 'Azure', elevenlabs: 'ElevenLabs', gemini: 'Gemini' };
+const siap = (p: Penyedia) => (p === 'edge' ? edgeSiap() : p === 'azure' ? azureSiap() : p === 'elevenlabs' ? elevenSiap() : !!process.env.GEMINI_API_KEY);
+const NAMA_PENYEDIA: Record<Penyedia, string> = { edge: 'Edge (tanpa key)', azure: 'Azure', elevenlabs: 'ElevenLabs', gemini: 'Gemini' };
 const SUARA_CADANGAN: Record<Penyedia, string> = {
+  edge: process.env.EDGE_VOICE_CADANGAN || 'id-ID-GadisNeural',
   azure: process.env.AZURE_SPEECH_VOICE_CADANGAN || 'id-ID-GadisNeural',
   elevenlabs: process.env.ELEVENLABS_VOICE_CADANGAN || 'EXAVITQu4vr4xnSDxMaL',
   gemini: 'Kore',
@@ -178,6 +180,23 @@ async function buatBaris(spec: Spec, i: number, u: Calon, tmp: string): Promise<
     const kata = r.timing.akhir.length ? kataDariHuruf(a.narasi, r.timing.huruf, r.timing.mulai, r.timing.akhir) : null;
     return { file: `suara/${a.id}.mp3`, durasi, mulut, kata: kata ?? kataDariAmplop(a.narasi, mulut, spec.fps) };
   }
+  if (u.penyedia === 'edge') {
+    const r = await ttsEdge(teks, u.suara);
+    fs.writeFileSync(path.join(tmp, `${a.id}.mp3`), r.mp3);
+    // gerak mulut: huruf tiap kata disebar merata di dalam rentang waktu kata itu
+    const huruf: string[] = [], mulai: number[] = [], akhir: number[] = [];
+    for (const k of r.kata) {
+      const h = [...k.t];
+      const d = (k.b - k.a) / Math.max(1, h.length);
+      h.forEach((c, j) => (huruf.push(c), mulai.push(k.a + j * d), akhir.push(k.a + (j + 1) * d)));
+      huruf.push(' '), mulai.push(k.b), akhir.push(k.b + 0.01);
+    }
+    const mulut = huruf.length ? amplopHuruf(huruf, mulai, akhir, spec.fps) : amplopPerkiraan(teks, r.durasi, spec.fps);
+    const kataNarasi = a.narasi.split(/\s+/).filter(Boolean);
+    const kata =
+      r.kata.length === kataNarasi.length ? kataNarasi.map((t, j) => ({ t, a: r.kata[j].a, b: r.kata[j].b })) : kataDariAmplop(a.narasi, mulut, spec.fps);
+    return { file: `suara/${a.id}.mp3`, durasi: r.durasi, mulut, kata };
+  }
   const r = u.penyedia === 'azure' ? await ttsAzure(teks, u.suara) : await ttsGemini(teks, u.suara);
   fs.writeFileSync(path.join(tmp, `${a.id}.wav`), r.data);
   const mulut = amplopWav(r.data, spec.fps);
@@ -200,7 +219,7 @@ export async function buatSuara(job: Job, dir: string) {
   const karakter = spec.adegan.reduce((s, a) => s + a.narasi.replace(/\*/g, '').length, 0);
   await lapor(job.id, { tahap: 'suara', status: 'mulai', log: `Membuat suara untuk ${spec.adegan.length} baris (${karakter} karakter)` });
 
-  const adaKey = (['azure', 'elevenlabs', 'gemini'] as Penyedia[]).some(siap);
+  const adaKey = (['edge', 'azure', 'elevenlabs', 'gemini'] as Penyedia[]).some(siap);
   if (!adaKey) {
     for (const a of spec.adegan) {
       const kata = a.narasi.split(/\s+/).filter(Boolean).length;
@@ -210,8 +229,8 @@ export async function buatSuara(job: Job, dir: string) {
       a.mulut = a.pembicara && a.pembicara !== 'narator' ? amplopPerkiraan(a.narasi.replace(/\*/g, ''), a.durasi - JEDA, spec.fps) : null;
     }
     fs.writeFileSync(fSpec, JSON.stringify(spec, null, 2));
-    await lapor(job.id, { tahap: 'suara', status: 'selesai', log: 'Belum ada API key suara (AZURE_SPEECH_KEY / ELEVENLABS_API_KEY / GEMINI_API_KEY): video tanpa suara' });
-    console.log('⚠ Tidak ada API key suara di .env → video tanpa suara.');
+    await lapor(job.id, { tahap: 'suara', status: 'selesai', log: 'Semua penyedia suara nonaktif (EDGE_TTS=0 dan tidak ada API key): video tanpa suara' });
+    console.log('⚠ Semua penyedia suara nonaktif → video tanpa suara.');
     return;
   }
 
@@ -231,7 +250,7 @@ export async function buatSuara(job: Job, dir: string) {
     const cocok = semuaEleven.find((v) => v.premade && v.bisa && (!jenis || v.ket.toLowerCase().includes(jenis === 'laki' ? 'laki' : 'perempuan')));
     return (jenis ? cocok : env) ?? env ?? semuaEleven.find((v) => v.premade && v.bisa) ?? null;
   };
-  // rantai cadangan per kelompok: pilihan → Azure (sesuai jenis kelamin) → ElevenLabs bawaan → Gemini
+  // rantai cadangan per kelompok: pilihan → Edge (tanpa key) → Azure (sesuai jenis kelamin) → ElevenLabs bawaan → Gemini
   const rantai = (nilai: string, jenis?: 'perempuan' | 'laki') => {
     const r: Calon[] = [];
     const tambah = (u: Calon) => !r.some((x) => x.penyedia === u.penyedia && x.suara === u.suara) && r.push(u);
@@ -240,6 +259,10 @@ export async function buatSuara(job: Job, dir: string) {
       const info = semuaEleven.find((v) => v.id === p.id);
       if (siap('elevenlabs') && (!info || info.bisa)) tambah({ penyedia: 'elevenlabs', suara: p.id, nama: info?.nama });
     } else if (siap(p.penyedia)) tambah({ penyedia: p.penyedia, suara: p.id, nama: namaSuara(p.id) });
+    if (siap('edge')) {
+      const ed = jenis === 'laki' ? 'id-ID-ArdiNeural' : jenis === 'perempuan' ? 'id-ID-GadisNeural' : SUARA_CADANGAN.edge;
+      tambah({ penyedia: 'edge', suara: ed, nama: namaSuara(ed) });
+    }
     if (siap('azure')) {
       const az = jenis === 'laki' ? 'id-ID-ArdiNeural' : jenis === 'perempuan' ? 'id-ID-GadisNeural' : SUARA_CADANGAN.azure;
       tambah({ penyedia: 'azure', suara: az, nama: namaSuara(az) });
