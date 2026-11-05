@@ -9,8 +9,9 @@ Langkahnya sama di komputer pengguna maupun di sesi cloud Claude Code. Perbedaan
 membuka UI (langkah 4). CLI mengenali sesi cloud sendiri lewat variabel `CLAUDE_CODE_REMOTE`:
 mode pratinjau aktif otomatis dan Chromium bawaan container dipakai untuk render.
 
-1. Pastikan dependensi sudah terpasang: kalau folder `node_modules` belum ada, jalankan
-   `npm install` dulu (sekali saja; boleh agak lama).
+1. Pastikan dependensi terpasang dan mutakhir. Kalau perintah `node studio.mjs ...` mana pun keluar
+   dengan kode 4 / `PERLU NPM INSTALL` (node_modules belum ada, atau ada paket baru setelah
+   `git pull`), jalankan `npm install` (boleh agak lama), lalu ulangi perintahnya.
 2. Jalankan **di background** (run_in_background, timeout maksimal):
    ```
    node studio.mjs server
