@@ -17,6 +17,7 @@ tokoh, TTS, subtitle karaoke, antrean job, dan pustaka aset semuanya dipakai ula
 | Aksi `turn-head` | `remotion/karakter/aksi/terapkan.ts` | Phase 2B ✓ |
 | Aksi `flashlight-sweep` (+ FK/IK, bidikan) | `remotion/karakter/aksi/terapkan.ts`, `ik.ts` | Phase 2C ✓ |
 | Aksi `open-object` (buku/map/dokumen, cek jangkauan) | `remotion/karakter/aksi/benda.ts`, `Benda.tsx` | Phase 2D ✓ |
+| Verifikasi routing/fallback (3 mode × 3 aksi) + adegan Mystery lengkap | `scripts/uji.ts` | Phase 2E ✓ |
 | Mesin sinematik (kamera, cahaya, parallax, bukti) | `remotion/sinematik/` | Phase 3 (belum) |
 | Kontrol studio khusus mystery + tab Pustaka | `studio/src/` | Phase 4 (belum) |
 

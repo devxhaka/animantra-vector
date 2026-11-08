@@ -10,7 +10,7 @@ import { GAYA_BAWAAN, GAYA_MYSTERY, PRESET_TEKS, PRESET_WARNA, rasioKontras } fr
 import { AGENT_MORGAN, KARAKTER_CONTOH, PAKAIAN_PILIHAN } from '../shared/karakter-bawaan';
 import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
-import { aksiAktifPada, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
+import { aksiAktifPada, dedupPeringatan, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec } from '../cli/cek';
 import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
 import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
@@ -673,6 +673,89 @@ uji('periksaSpec: spec contoh + aset + caption lolos; aset hilang ditolak', () =
   pastikan(!gagal.ok && gagal.masalah.some((m) => /aset tidak ada/.test(m)), JSON.stringify(gagal.masalah));
   fs.rmSync(tmp2, { recursive: true, force: true });
 });
+// ======================= Phase 2E: matriks routing 3 mode × 3 aksi =======================
+console.log('Phase 2E: matriks routing (mode × aksi)');
+{
+  const MODE = ['existing', 'special', 'auto'] as const;
+  const PEN_M: Penempatan = { x: 0.42, y: 0.8, skala: 1, lebarLayar: 1080, tinggiLayar: 1920, hadap: 'kanan' };
+  const ctxM: KonteksTerapkan = { hadap: 'kanan', karakter: AGENT_MORGAN, penempatan: PEN_M };
+  const AKSI_M: Record<string, AksiTokoh> = {
+    'turn-head': { jenis: 'turn-head', mulai: 0.5, durasi: 2, arah: 'kiri', ekspresi: 'cemas' },
+    'flashlight-sweep': { jenis: 'flashlight-sweep', mulai: 0.5, durasi: 2, dari: { x: 0.9, y: 0.35 }, ke: { x: 0.8, y: 0.6 } },
+    'open-object': { jenis: 'open-object', mulai: 0.5, durasi: 2, benda: 'map', posisi: { x: 0.58, y: 0.53 } },
+  };
+  const tengah = 0.5 + 2 * 0.6; // fase buka/sapu/menoleh penuh
+  const tokohM = (aksi: AksiTokoh[], modeAnimasi?: (typeof MODE)[number]): TokohAdegan => ({ id: 'morgan', x: 0.42, hadap: 'kanan', pose: 'diam', ekspresi: 'netral', ...(modeAnimasi ? { modeAnimasi } : {}), aksi });
+  const override = (st: StatusTokoh) => ({ kepala: st.putarKepala !== undefined, lengan: !!st.lengan?.dep || !!st.lengan?.bel, senter: !!st.pegang?.dep || !!st.pegang?.bel });
+
+  for (const jenis of ID_AKSI)
+    for (const mode of MODE)
+      uji(`${mode} × ${jenis}`, () => {
+        const r = rencanakanAksi(tokohM([AKSI_M[jenis]], mode), { karakter: AGENT_MORGAN, durasiAdegan: 3 });
+        const st = terapkanAksi(S_DASAR, aksiAktifPada(r, tengah), ctxM);
+        const o = override(st);
+        if (mode === 'existing') {
+          pastikan(!r.khusus.length && r.urutanFallback.length > 0, 'harus fallback');
+          pastikan(kode(r).join() === 'disederhanakan' && r.peringatan[0].tingkat === 'info' && /TIDAK/.test(r.peringatan[0].pesan), JSON.stringify(r.peringatan));
+          pastikan(st === S_DASAR && !o.kepala && !o.lengan && !o.senter, 'existing tidak boleh ada override');
+        } else {
+          pastikan(r.khusus.length === 1 && !r.urutanFallback.length && !r.peringatan.length, kode(r).join());
+          if (jenis === 'turn-head') pastikan(o.kepala && !o.lengan && !o.senter, JSON.stringify(o));
+          if (jenis === 'flashlight-sweep') pastikan(!o.kepala && o.lengan && o.senter && st.pegang!.dep!.sinar === 1, JSON.stringify(o));
+          if (jenis === 'open-object') {
+            pastikan(!o.kepala && o.lengan && !o.senter, JSON.stringify(o));
+            // renderer menggambar benda untuk setiap open-object di `khusus`
+            pastikan(r.khusus[0].aksi.jenis === 'open-object', 'benda harus digambar');
+          }
+        }
+      });
+
+  uji('special & auto menghasilkan keluaran IDENTIK bila aksi tersedia (ketiga aksi)', () => {
+    for (const jenis of ID_AKSI) {
+      const keluar = (m: 'special' | 'auto') => JSON.stringify(terapkanAksi(S_DASAR, aksiAktifPada(rencanakanAksi(tokohM([AKSI_M[jenis]], m), { karakter: AGENT_MORGAN }), tengah), ctxM));
+      pastikan(keluar('special') === keluar('auto'), jenis);
+    }
+  });
+  uji('special/auto + implementasi tidak tersedia → fallback + "belum-tersedia" (ketiga aksi)', () => {
+    for (const jenis of ID_AKSI)
+      for (const mode of ['special', 'auto'] as const) {
+        const reg = { [jenis]: { ...REGISTRI_AKSI[jenis], tersedia: false } };
+        const r = rencanakanAksi(tokohM([AKSI_M[jenis]], mode), { registri: reg });
+        pastikan(!r.khusus.length && r.urutanFallback.length > 0 && kode(r).join() === 'belum-tersedia' && r.peringatan[0].tingkat === 'peringatan', `${mode} ${jenis}: ${kode(r)}`);
+        pastikan(terapkanAksi(S_DASAR, aksiAktifPada(r, tengah), ctxM) === S_DASAR, 'tanpa override');
+      }
+  });
+  uji('special/auto + rig tidak cocok → fallback + "rig-tidak-cocok" (ketiga aksi)', () => {
+    for (const jenis of ID_AKSI)
+      for (const mode of ['special', 'auto'] as const) {
+        const reg = { [jenis]: { ...REGISTRI_AKSI[jenis], cocokRig: () => 'uji' } };
+        const r = rencanakanAksi(tokohM([AKSI_M[jenis]], mode), { registri: reg });
+        pastikan(!r.khusus.length && kode(r).join() === 'rig-tidak-cocok', `${mode} ${jenis}: ${kode(r)}`);
+      }
+  });
+  uji('aksi tak dikenal di setiap mode → "tidak-dikenal" (masalah), tidak hilang diam-diam', () => {
+    for (const mode of MODE) {
+      const r = rencanakanAksi(tokohM([{ jenis: 'melompat', mulai: 0, durasi: 1 } as unknown as AksiTokoh], mode));
+      pastikan(kode(r).join() === 'tidak-dikenal' && r.peringatan[0].tingkat === 'masalah', mode + ': ' + kode(r));
+    }
+  });
+  uji('aset hilang: existing → tidak relevan; special/auto → "aset-hilang" + gambar bawaan', () => {
+    for (const jenis of ['flashlight-sweep', 'open-object'] as const)
+      for (const mode of MODE) {
+        const aksi = { ...AKSI_M[jenis], aset: 'aset/hilang.svg' } as AksiTokoh;
+        const r = rencanakanAksi(tokohM([aksi], mode), { asetHilang: ['aset/hilang.svg'] });
+        if (mode === 'existing') pastikan(!kode(r).includes('aset-hilang') && kode(r).join() === 'disederhanakan', `${mode} ${jenis}: ${kode(r)}`);
+        else pastikan(kode(r).join() === 'aset-hilang' && r.khusus[0].pakaiGambarBawaan, `${mode} ${jenis}: ${kode(r)}`);
+      }
+  });
+  uji('dedup: peringatan identik digabung; adegan berbeda tetap dilaporkan masing-masing', () => {
+    const p = { kode: 'tidak-dikenal' as const, tingkat: 'masalah' as const, indeks: 0, pesan: 'x' };
+    pastikan(dedupPeringatan([p, { ...p }, { ...p, indeks: 1 }]).length === 2, 'dedup');
+    const ad = (id: string) => ({ id, narasi: 'x', durasi: 3, tokoh: [tokohM([{ jenis: 'melompat', mulai: 0, durasi: 1 } as unknown as AksiTokoh])] });
+    const h = cekAksiSpec({ ...SPEC_CONTOH, pemeran: [AGENT_MORGAN], adegan: [ad('a1'), ad('a2')] } as unknown as Spec, () => true);
+    pastikan(h.masalah.length === 2 && /a1/.test(h.masalah[0]) && /a2/.test(h.masalah[1]), JSON.stringify(h.masalah));
+  });
+}
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);
 process.exit(gagal.length ? 1 : 0);

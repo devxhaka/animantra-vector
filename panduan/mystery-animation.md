@@ -30,6 +30,17 @@ Mode efektif: `tokoh.modeAnimasi ?? spec.modeAnimasi ?? 'auto'`.
 | `special` | aksi khusus; bila tidak bisa → pose lama + peringatan |
 | `auto` | aksi khusus bila tersedia & tokoh cocok; selain itu pose lama + peringatan |
 
+### Tabel routing final (diverifikasi Phase 2E: unit test + render)
+| Aksi | `existing` (· info `disederhanakan`) | `special` | `auto` |
+|---|---|---|---|
+| `turn-head` | mata melirik ke `arah` (+ ekspresi); kepala tidak berputar | kepala menoleh | = `special` (identik piksel) |
+| `flashlight-sweep` | pose `menunjuk` ke tujuan; tanpa senter/sinar/sapuan | lengan + senter + sinar menyapu | = `special` (identik piksel) |
+| `open-object` | pose `meraih` → `berpikir`; benda tidak digambar | tangan menjangkau & membuka benda | = `special` (identik piksel) |
+
+Di semua mode: jenis aksi tak dikenal → ✗ `tidak-dikenal` (aksi diabaikan, render tetap jalan);
+aset kustom hilang → ! `aset-hilang` + gambar bawaan (di `existing` aset tidak dipakai, jadi tidak diperingatkan).
+`auto` hanya berbeda dari `special` bila aksi belum tersedia atau rig tokoh tidak cocok (keduanya → pose lama + peringatan).
+
 ## `turn-head`
 | Field | Wajib | Nilai | Keterangan |
 |---|---|---|---|
