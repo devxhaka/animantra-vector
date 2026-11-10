@@ -1,0 +1,51 @@
+{
+  "id": "sinematik",
+  "nama": "Sinematik",
+  "seri": "BAYANGKAN",
+  "warna": {
+    "latar": "#1a1714",
+    "lantai": "#0f0d0b",
+    "teks": "#f2ede4",
+    "merek": "#c8f04a",
+    "sorot": "#c8f04a",
+    "teksSorot": "#111111",
+    "label": "#1c1f24",
+    "teksLabel": "#f2ede4",
+    "permukaan": "#1c1f24",
+    "peringatan": "#e0453a"
+  },
+  "gelap": true,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 6,
+    "label": "kotak",
+    "outline": 0,
+    "bayangan": false
+  },
+  "teks": {
+    "huruf": "montserrat",
+    "ukuran": 76,
+    "kapital": true,
+    "warna": "#f4f1ea",
+    "garis": {
+      "warna": "#111111",
+      "tebal": 10
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.6,
+    "kataPerBaris": 2,
+    "mode": "karaoke",
+    "efek": "warna",
+    "warnaSorot": "#c8f04a",
+    "warnaTeksSorot": "#111111",
+    "kataKunci": "warna",
+    "warnaKunci": "#c8f04a",
+    "masuk": "pop"
+  },
+  "logo": null
+}
