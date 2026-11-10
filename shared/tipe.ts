@@ -122,6 +122,14 @@ export type VideoMeta = {
   diperbarui: string;
   versi: number;
   ada: { video: boolean; cover: boolean; caption: boolean; cuplikan: number };
+  /** Info seri (dihitung server dari pesanan.json & spec.json). */
+  seri?: {
+    lanjutan: string | null; // slug episode sebelumnya
+    episode: number | null;
+    nama: string | null; // spec.seri
+    opsi: string[] | null; // pilihan di akhir episode ini
+    pilihanPenonton: string | null; // pilihan penonton dari episode sebelumnya yang dijalankan episode ini
+  };
 };
 
 // ---------- Spec video (ditulis Claude di videos/<slug>/spec.json) ----------

@@ -107,7 +107,16 @@ export function metaVideo(slug: string): VideoMeta | null {
   if (!m) return null;
   const ada = (f: string) => fs.existsSync(path.join(d, f));
   const cuplikan = fs.existsSync(path.join(d, 'cuplikan')) ? fs.readdirSync(path.join(d, 'cuplikan')).filter((f) => f.endsWith('.jpg')).length : 0;
-  return { ...m, ada: { video: ada('final.mp4'), cover: ada('cover.jpg'), caption: ada('caption.txt'), cuplikan } };
+  const pes = bacaJson<{ lanjutan?: { slug?: string; pilihanPenonton?: string | null } | null } | null>(path.join(d, 'pesanan.json'), null);
+  const sp = bacaJson<Spec | null>(path.join(d, 'spec.json'), null);
+  const seri = {
+    lanjutan: pes?.lanjutan?.slug ?? null,
+    episode: sp?.episode ?? null,
+    nama: sp?.seri ?? null,
+    opsi: [...(sp?.adegan ?? [])].reverse().find((a) => a.pilihan?.opsi?.length)?.pilihan?.opsi ?? null,
+    pilihanPenonton: pes?.lanjutan?.pilihanPenonton ?? null,
+  };
+  return { ...m, ada: { video: ada('final.mp4'), cover: ada('cover.jpg'), caption: ada('caption.txt'), cuplikan }, seri };
 }
 export function daftarVideo(): VideoMeta[] {
   return fs
