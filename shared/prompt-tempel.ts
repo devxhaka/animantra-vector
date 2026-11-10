@@ -8,6 +8,7 @@
 // satu blok ```text (caption).
 
 import type { FormatDef, Gaya, Karakter, Spec } from './tipe';
+import { EKSPRESI, POSE, POSISI_TUBUH } from './tipe';
 
 export type MasukanPrompt = {
   format: FormatDef;
@@ -40,6 +41,7 @@ export function buatPromptTempel(m: MasukanPrompt): string {
       baris.push(`- ${p.id} (${p.nama}): ${p.peran}. Suara tokoh sudah diatur di studio.`);
     baris.push(`Sudut cerita: ${m.sudut ?? 'dialog'}.${m.nuansa ? ` Nuansa: ${m.nuansa}.` : ''}`);
     baris.push('Satu adegan = satu baris dialog/narasi. Isi "pembicara" dengan id tokoh atau "narator".');
+    baris.push(`Tokoh per adegan: {"id","x","y"?,"hadap","pose","ekspresi","tubuh"?,"lenganDiDepan"?}. pose: ${POSE.join(', ')}. ekspresi: ${EKSPRESI.join(', ')}. tubuh: ${POSISI_TUBUH.join(', ')}. Memeluk anak: yang memeluk berlutut + "lenganDiDepan": true, yang dipeluk "z" lebih besar.`);
   }
   if (m.misteri) {
     baris.push('');

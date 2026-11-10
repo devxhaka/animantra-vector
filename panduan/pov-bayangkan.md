@@ -40,6 +40,10 @@ Gaya bawaan **"Sinematik"** (di-seed sekali, penanda `data/gaya/.seed-sinematik`
 subtitle Montserrat kapital 2 kata di tengah layar (posisi 0,6), kata aktif & kata kunci lime.
 Tetap pakai gaya yang dipilih pengguna di pesanan.
 
+## Pose & emosi (Phase B)
+`tubuh`: `duduk-bersila` / `berlutut` / `berbaring`; pose `memeluk` / `merangkul` / `menyeka-mata`;
+ekspresi `menangis` (air mata) / `terpejam` (doa, tidur). Aturan komposisi pelukan: lihat `panduan/cerita.md`.
+
 ## Belum tersedia (tahap berikutnya)
-Pose duduk/berlutut/berbaring/berpelukan/menangis, kamera menyusuri & dari balik bahu, cahaya lampu hangat,
-api, kerumunan. Jangan menjanjikan visual itu di naskah; pakai pose & suasana yang sudah ada.
+Kamera menyusuri & dari balik bahu, cahaya lampu hangat, api, kerumunan. Jangan menjanjikan visual itu di naskah;
+pakai pose & suasana yang sudah ada.

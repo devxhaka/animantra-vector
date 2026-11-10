@@ -110,7 +110,11 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
           <AsetView key={'a' + i} aset={a} t={t} />
         ))}
         {tokoh.map((tk) => (
-          <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} />
+          <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis={tk.lenganDiDepan ? 'tanpa-lengan-depan' : undefined} />
+        ))}
+        {/* lengan yang memeluk/merangkul: digambar di atas semua tokoh */}
+        {tokoh.filter((tk) => tk.lenganDiDepan).map((tk) => (
+          <TokohAdeganView key={tk.id + '-lengan'} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis="lengan-depan" />
         ))}
         {aset.filter((a) => (a.z ?? 0) >= 5).map((a, i) => (
           <AsetView key={'d' + i} aset={a} t={t} />

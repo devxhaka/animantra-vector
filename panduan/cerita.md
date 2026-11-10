@@ -42,14 +42,21 @@ menggambar **latar**, lalu mengarahkan tokoh (posisi, pose, ekspresi, arah panda
 | `x`, `y` | posisi **kaki** (0..1). `y` bawaan 0,8. Tokoh lebih jauh = `y` lebih kecil + `skala` lebih kecil |
 | `skala` | 1 = normal. Tinggi sudah mengikuti usia (anak lebih pendek otomatis) |
 | `hadap` | `kiri` / `kanan`. Dua tokoh yang bicara biasanya saling berhadapan |
-| `pose` | `diam` `menunjuk` `melambai` `berpikir` `kaget` `berdoa` `tangan-di-dada` `memeluk-diri` `menenangkan` `meraih` `menjelaskan` `jalan` |
-| `ekspresi` | `netral` `senang` `tenang` `cemas` `takut` `kaget` `sedih` `serius` `bingung` |
+| `pose` | `diam` `menunjuk` `melambai` `berpikir` `kaget` `berdoa` `tangan-di-dada` `memeluk-diri` `menenangkan` `meraih` `menjelaskan` `jalan` `memeluk` `merangkul` `menyeka-mata` |
+| `ekspresi` | `netral` `senang` `tenang` `cemas` `takut` `kaget` `sedih` `serius` `bingung` `menangis` (air mata) `terpejam` (doa/tidur) |
+| `tubuh` | `berdiri` (bawaan) `duduk-bersila` `berlutut` `berbaring` (telentang; `x` = tengah badan). Dipadu bebas dengan `pose` lengan, mis. bersila + `berdoa` |
+| `lenganDiDepan` | `true` = lengan depan digambar di atas semua tokoh (untuk `memeluk`/`merangkul` tokoh di depannya) |
 | `lihat` | `depan` `kiri` `kanan` `atas` `bawah` (arah bola mata) |
-| `urutan` | perubahan di tengah baris: `[{ "pada": detik, "pose"?, "ekspresi"?, "lihat"?, "hadap"? }]` |
+| `urutan` | perubahan di tengah baris: `[{ "pada": detik, "pose"?, "ekspresi"?, "lihat"?, "hadap"?, "tubuh"? }]` (duduk/berdiri berpindah halus ±0,6 dtk) |
 | `jalan` | `{ "ke": x tujuan, "mulai": dtk, "selesai": dtk }`. Kaki melangkah otomatis |
 | `siluet` | `true` = tampil sebagai bayangan hitam |
 
 - Pose & ekspresi **tersambung halus** dari adegan sebelumnya; cukup tulis keadaan barunya.
+- **Memeluk/merangkul**: tinggi bahu harus setara. Orang dewasa memeluk anak → yang memeluk `tubuh: "berlutut"`
+  atau duduk. Yang dipeluk `z` lebih besar (di depan), yang memeluk `lenganDiDepan: true`, selisih `x` ±0,08–0,15.
+  Merangkul: keduanya menghadap sama, yang merangkul di belakang-samping (selisih `x` ±0,14).
+- Berbaring di pangkuan: yang duduk `duduk-bersila`, yang berbaring `y` sedikit lebih besar (±0,02) dan `x` di depannya.
+- Aksi khusus (`aksi`: senter, membuka benda) dihitung untuk tokoh **berdiri**; jangan dipadukan dengan `tubuh` lain.
 - Yang sedang bicara otomatis gerak mulut & mengangguk kecil. Pendengar beri reaksi (`urutan`).
 - Tokoh yang bicara **wajib tampil** di adegannya (kecuali narator).
 - Pemeran yang tidak sedang di lokasi tidak perlu dicantumkan.

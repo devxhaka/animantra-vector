@@ -212,11 +212,14 @@ export type Karakter = {
   aksesori?: Aksesori[];
 };
 
-export const POSE = ['diam', 'menunjuk', 'melambai', 'berpikir', 'kaget', 'berdoa', 'tangan-di-dada', 'memeluk-diri', 'menenangkan', 'meraih', 'menjelaskan', 'jalan'] as const;
+export const POSE = ['diam', 'menunjuk', 'melambai', 'berpikir', 'kaget', 'berdoa', 'tangan-di-dada', 'memeluk-diri', 'menenangkan', 'meraih', 'menjelaskan', 'jalan', 'memeluk', 'merangkul', 'menyeka-mata'] as const;
 export type Pose = (typeof POSE)[number];
-export const EKSPRESI = ['netral', 'senang', 'tenang', 'cemas', 'takut', 'kaget', 'sedih', 'serius', 'bingung'] as const;
+export const EKSPRESI = ['netral', 'senang', 'tenang', 'cemas', 'takut', 'kaget', 'sedih', 'serius', 'bingung', 'menangis', 'terpejam'] as const;
 export type Ekspresi = (typeof EKSPRESI)[number];
 export type Lihat = 'depan' | 'kiri' | 'kanan' | 'atas' | 'bawah';
+/** Posisi tubuh bagian bawah (terpisah dari `pose` lengan). Kosong = berdiri (perilaku lama). */
+export const POSISI_TUBUH = ['berdiri', 'duduk-bersila', 'berlutut', 'berbaring'] as const;
+export type PosisiTubuh = (typeof POSISI_TUBUH)[number];
 
 export type TokohAdegan = {
   id: string; // id Karakter
@@ -228,7 +231,11 @@ export type TokohAdegan = {
   ekspresi?: Ekspresi;
   lihat?: Lihat;
   /** perubahan di tengah adegan (detik relatif adegan) */
-  urutan?: { pada: number; pose?: Pose; ekspresi?: Ekspresi; lihat?: Lihat; hadap?: 'kiri' | 'kanan' }[];
+  urutan?: { pada: number; pose?: Pose; ekspresi?: Ekspresi; lihat?: Lihat; hadap?: 'kiri' | 'kanan'; tubuh?: PosisiTubuh }[];
+  /** Posisi tubuh bawah: duduk bersila, berlutut, berbaring. Kosong = berdiri. Bisa dipadu dengan `pose` lengan. */
+  tubuh?: PosisiTubuh;
+  /** Lengan depan digambar di atas SEMUA tokoh (untuk memeluk/merangkul tokoh di depannya). */
+  lenganDiDepan?: boolean;
   jalan?: { ke: number; mulai: number; selesai: number } | null;
   z?: number;
   siluet?: boolean; // tampil sebagai bayangan hitam (sosok yang tidak boleh/tidak perlu digambar jelas)

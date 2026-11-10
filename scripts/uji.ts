@@ -12,12 +12,14 @@ import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, dedupPeringatan, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec, cekKartuCerita } from '../cli/cek';
+import { keadaanAkhir } from '../remotion/cerita';
+import { EKSPRESI, POSE, POSISI_TUBUH } from '../shared/tipe';
 import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
 import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
 import { bentukBenda, sudutBuka, targetTangan, tepiPanel } from '../remotion/karakter/aksi/benda';
 import { bidikTitik, bungkus, fkTangan, ikDuaSendi, layarKeLokal, lokalKeLayar, posisiBahu, sudutArah, type Penempatan } from '../remotion/karakter/aksi/ik';
 import type { BagianTubuh } from '../shared/aksi';
-import { PARAM_EKSPRESI, PARAM_POSE, PUTAR_DASAR, geometriRig, sudutLenganDasar, type StatusTokoh } from '../remotion/karakter/Tokoh';
+import { PARAM_EKSPRESI, PARAM_POSE, PARAM_TUBUH, PUTAR_DASAR, campurEkspresi, campurTubuh, geometriRig, sendiKaki, sudutLenganDasar, turunTubuh, type StatusTokoh } from '../remotion/karakter/Tokoh';
 import type { AksiAktif } from '../remotion/karakter/aksi/resolver';
 import type { AksiFlashlightSweep, AksiOpenObject, AksiTokoh, AksiTurnHead, Spec, TokohAdegan } from '../shared/tipe';
 
@@ -800,6 +802,70 @@ console.log('POV Bayangkan: format, gaya, kartu cerita');
     pastikan(!buatPromptTempel({ ...dasar, format: FORMATS[0] }).includes('"kartuPenutup"'), 'format lain tidak');
   });
   uji('spec lama tanpa field baru: tidak ada saran kartu cerita', () => pastikan(!cekKartuCerita(SPEC_CONTOH as unknown as Spec).length, 'harus kosong'));
+}
+
+// ======================= Phase B: pose, tubuh, emosi =======================
+console.log('Phase B: posisi tubuh, pose interaksi, ekspresi emosi');
+{
+  const KAK = KARAKTER_CONTOH[0];
+  const g = geometriRig(KAK);
+  const pk = -g.pinggulY;
+  uji('setiap POSE, EKSPRESI, POSISI_TUBUH punya parameter rig', () => {
+    for (const p of POSE) pastikan(PARAM_POSE[p], 'pose ' + p);
+    for (const e of EKSPRESI) pastikan(PARAM_EKSPRESI[e], 'ekspresi ' + e);
+    for (const t of POSISI_TUBUH) pastikan(PARAM_TUBUH[t], 'tubuh ' + t);
+  });
+  uji('berdiri: turun tepat 0 dan telapak tepat di lantai (kaki lurus lama)', () => {
+    pastikan(turunTubuh(pk, g.tebalKaki, PARAM_TUBUH.berdiri) === 0, 'turun ' + turunTubuh(pk, g.tebalKaki, PARAM_TUBUH.berdiri));
+    const { telapak } = sendiKaki(pk, [0, 0]);
+    pastikan(Math.abs(telapak.y - pk) < 1e-9 && Math.abs(telapak.x) < 1e-9, JSON.stringify(telapak));
+  });
+  uji('duduk/berlutut: titik terendah kaki tepat menyentuh lantai, pinggul turun', () => {
+    for (const nama of ['duduk-bersila', 'berlutut'] as const) {
+      const t = PARAM_TUBUH[nama];
+      const turun = turunTubuh(pk, g.tebalKaki, t);
+      pastikan(turun > pk * 0.3 && turun < pk, `${nama}: turun ${turun.toFixed(1)} dari ${pk.toFixed(1)}`);
+      // setelah turun, tidak ada bagian kaki yang menembus lantai (y > 0 relatif kaki)
+      for (const s of [t.kakiDep, t.kakiBel]) {
+        const { lutut, telapak } = sendiKaki(pk, s);
+        pastikan(g.pinggulY + turun + telapak.y <= 1e-6 && g.pinggulY + turun + lutut.y <= 1e-6, `${nama} menembus lantai`);
+      }
+    }
+  });
+  uji('berlutut: lutut jadi tumpuan (lebih rendah dari telapak), bersila: pinggul paling rendah', () => {
+    const l = sendiKaki(pk, PARAM_TUBUH.berlutut.kakiDep);
+    pastikan(l.lutut.y > l.telapak.y - 1, 'lutut harus di bawah/sejajar telapak');
+    pastikan(turunTubuh(pk, g.tebalKaki, PARAM_TUBUH['duduk-bersila']) > turunTubuh(pk, g.tebalKaki, PARAM_TUBUH.berlutut), 'bersila lebih rendah dari berlutut');
+  });
+  uji('transisi tubuh kontinu: turun berubah halus (tanpa lompatan > 6% panjang kaki per 1/30 transisi)', () => {
+    for (const [a, b] of [['berdiri', 'duduk-bersila'], ['berdiri', 'berlutut'], ['berlutut', 'duduk-bersila']] as const) {
+      let lalu = turunTubuh(pk, g.tebalKaki, PARAM_TUBUH[a]);
+      for (let i = 1; i <= 30; i++) {
+        const kini = turunTubuh(pk, g.tebalKaki, campurTubuh(PARAM_TUBUH[a], PARAM_TUBUH[b], i / 30));
+        pastikan(Math.abs(kini - lalu) < pk * 0.06, `${a}→${b} lompat ${(kini - lalu).toFixed(1)} di ${i}/30`);
+        lalu = kini;
+      }
+    }
+  });
+  uji('ekspresi lama tidak mendapat field air (render lama identik); menangis punya air mata', () => {
+    pastikan(!('air' in campurEkspresi(PARAM_EKSPRESI.netral, PARAM_EKSPRESI.sedih, 0.5)), 'air bocor ke ekspresi lama');
+    pastikan(campurEkspresi(PARAM_EKSPRESI.sedih, PARAM_EKSPRESI.menangis, 0.5).air === 0.5, 'campur air');
+    pastikan(PARAM_EKSPRESI.terpejam.buka < 0.15, 'terpejam harus menutup mata');
+  });
+  uji('keadaanAkhir membawa tubuh dari urutan ke adegan berikutnya', () => {
+    const k = keadaanAkhir({ id: 'a', x: 0.5, urutan: [{ pada: 1, tubuh: 'berlutut' }, { pada: 2, pose: 'berdoa' }] });
+    pastikan(k.tubuh === 'berlutut' && k.pose === 'berdoa', JSON.stringify(k));
+    pastikan(keadaanAkhir({ id: 'a', x: 0.5 }).tubuh === 'berdiri', 'bawaan berdiri');
+  });
+  uji('skema menerima tubuh, lenganDiDepan, urutan.tubuh; menolak tubuh tak dikenal', () => {
+    const ad = (tk: object) => ({ ...SPEC_CONTOH, adegan: [{ id: 'a', narasi: 'x', durasi: 3, tokoh: [{ id: 'a', x: 0.5, ...tk }] }] });
+    valid(ad({ tubuh: 'duduk-bersila', pose: 'merangkul', ekspresi: 'menangis', lenganDiDepan: true, urutan: [{ pada: 1, tubuh: 'berbaring' }] }));
+    pastikan(!skemaSpec.safeParse(ad({ tubuh: 'jongkok' })).success, 'tubuh salah harus ditolak');
+  });
+  uji('prompt Mode Tempel memuat daftar pose/ekspresi/tubuh terbaru', () => {
+    const p = buatPromptTempel({ format: formatDari('cerita'), topik: 't', durasiTarget: 60, gaya: GAYA_BAWAAN, suara: 'x', musik: 'tanpa', pemeran: [KAK] });
+    for (const kata of ['merangkul', 'menangis', 'duduk-bersila']) pastikan(p.includes(kata), 'kurang ' + kata);
+  });
 }
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);

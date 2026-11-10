@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
-import type { Adegan, Ekspresi, Karakter, Lihat, Pose, Suasana, TokohAdegan } from '../shared/tipe';
-import { PARAM_EKSPRESI, PARAM_POSE, TokohSvg, VIEWBOX, campurEkspresi, campurPose, type StatusTokoh } from './karakter/Tokoh';
+import type { Adegan, Ekspresi, Karakter, Lihat, PosisiTubuh, Pose, Suasana, TokohAdegan } from '../shared/tipe';
+import { PARAM_EKSPRESI, PARAM_POSE, PARAM_TUBUH, TokohSvg, VIEWBOX, campurEkspresi, campurPose, campurTubuh, type StatusTokoh } from './karakter/Tokoh';
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
 import { aksiAktifPada, gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
 import { terapkanAksi } from './karakter/aksi/terapkan';
@@ -11,14 +11,16 @@ import { useGambarAksi } from './karakter/aksi/asetSvg';
 import type { ModeAnimasi } from '../shared/tipe';
 
 const TRANSISI = 0.32; // detik perpindahan pose/ekspresi
+const TRANSISI_TUBUH = 0.6; // duduk/berdiri/berbaring lebih lambat dari gerak lengan
 
-export type KeadaanAkhir = { pose: Pose; ekspresi: Ekspresi; lihat: Lihat; hadap: 'kiri' | 'kanan' };
+export type KeadaanAkhir = { pose: Pose; ekspresi: Ekspresi; lihat: Lihat; hadap: 'kiri' | 'kanan'; tubuh?: PosisiTubuh };
 
 /** Keadaan tokoh di akhir adegan (dipakai sebagai titik awal di adegan berikutnya, agar tidak "loncat"). */
 export function keadaanAkhir(t: TokohAdegan): KeadaanAkhir {
-  const k: KeadaanAkhir = { pose: t.pose ?? 'diam', ekspresi: t.ekspresi ?? 'netral', lihat: t.lihat ?? 'depan', hadap: t.hadap ?? 'kanan' };
+  const k: KeadaanAkhir = { pose: t.pose ?? 'diam', ekspresi: t.ekspresi ?? 'netral', lihat: t.lihat ?? 'depan', hadap: t.hadap ?? 'kanan', tubuh: t.tubuh ?? 'berdiri' };
   for (const u of [...(t.urutan ?? [])].sort((a, b) => a.pada - b.pada)) {
     if (u.pose) k.pose = u.pose;
+    if (u.tubuh) k.tubuh = u.tubuh;
     if (u.ekspresi) k.ekspresi = u.ekspresi;
     if (u.lihat) k.lihat = u.lihat;
     if (u.hadap) k.hadap = u.hadap;
@@ -36,7 +38,7 @@ function statusPada(t: TokohAdegan, detik: number, awal?: KeadaanAkhir) {
   let kini = { ...dasar };
   kejadian.push({ pada: 0, k: { ...kini } });
   for (const u of [...(t.urutan ?? [])].sort((a, b) => a.pada - b.pada)) {
-    kini = { pose: u.pose ?? kini.pose, ekspresi: u.ekspresi ?? kini.ekspresi, lihat: u.lihat ?? kini.lihat, hadap: u.hadap ?? kini.hadap };
+    kini = { pose: u.pose ?? kini.pose, ekspresi: u.ekspresi ?? kini.ekspresi, lihat: u.lihat ?? kini.lihat, hadap: u.hadap ?? kini.hadap, tubuh: u.tubuh ?? kini.tubuh };
     kejadian.push({ pada: u.pada, k: { ...kini } });
   }
   let i = 0;
@@ -45,12 +47,17 @@ function statusPada(t: TokohAdegan, detik: number, awal?: KeadaanAkhir) {
   const dari = i === 0 ? awal ?? target : kejadian[i - 1].k;
   const p = halus(Math.min(1, Math.max(0, (detik - kejadian[i].pada) / TRANSISI)));
   const la = LIHAT[dari.lihat], lb = LIHAT[target.lihat];
+  // posisi tubuh: hanya diisi bila tidak berdiri (atau sedang berpindah) → tokoh berdiri memakai jalur gambar lama persis
+  const ta = dari.tubuh ?? 'berdiri', tt = target.tubuh ?? 'berdiri';
+  const pt = halus(Math.min(1, Math.max(0, (detik - kejadian[i].pada) / TRANSISI_TUBUH)));
+  const tubuh = ta === 'berdiri' && tt === 'berdiri' ? undefined : campurTubuh(PARAM_TUBUH[ta], PARAM_TUBUH[tt], pt);
   return {
+    tubuh,
     pose: campurPose(PARAM_POSE[dari.pose], PARAM_POSE[target.pose], p),
     ekspresi: campurEkspresi(PARAM_EKSPRESI[dari.ekspresi], PARAM_EKSPRESI[target.ekspresi], p),
     lihat: [la[0] + (lb[0] - la[0]) * p, la[1] + (lb[1] - la[1]) * p] as [number, number],
     hadap: p < 0.5 ? dari.hadap : target.hadap,
-    berjalan: target.pose === 'jalan',
+    berjalan: target.pose === 'jalan' && tt === 'berdiri',
   };
 }
 
@@ -60,7 +67,9 @@ export const TokohAdeganView: React.FC<{
   adegan: Adegan;
   awal?: KeadaanAkhir;
   modeAnimasi?: ModeAnimasi;
-}> = ({ tokoh: tokohSpec, karakter, adegan, awal, modeAnimasi }) => {
+  /** Lapisan gambar: tanpa lengan depan (badan) atau hanya lengan depan (di atas semua tokoh). Kosong = utuh. */
+  lapis?: StatusTokoh['lapis'];
+}> = ({ tokoh: tokohSpec, karakter, adegan, awal, modeAnimasi, lapis }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const t = frame / fps;
@@ -84,7 +93,11 @@ export const TokohAdeganView: React.FC<{
   }
   const bicara = adegan.pembicara === tokoh.id && adegan.mulut?.length ? (adegan.mulut[frame] ?? 0) : 0;
 
-  const dasar: StatusTokoh = { pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet };
+  const dasar: StatusTokoh = {
+    pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet,
+    ...(st.tubuh ? { tubuh: st.tubuh, jalan: NaN } : {}),
+    ...(lapis ? { lapis } : {}),
+  };
   // aksi khusus aktif di detik ini (murni dari t) → override bagian tubuh yang dipegang aksi
   const s = rencana
     ? terapkanAksi(dasar, aksiAktifPada(rencana, t), {
@@ -103,7 +116,7 @@ export const TokohAdeganView: React.FC<{
   const tokohEl = <TokohSvg k={karakter} s={s} hadap={st.hadap} style={{ position: 'absolute', left: kiri, top: atas, width: lebar, height: tinggi }} />;
   // benda open-object (hanya bila dijalankan sebagai aksi khusus): digambar DI BELAKANG tokoh supaya tangan
   // menutupi benda saat menyentuh. Tampil sepanjang adegan: tertutup sebelum aksi, terbuka sesudahnya.
-  const benda = rencana?.khusus.filter((r) => r.aksi.jenis === 'open-object') ?? [];
+  const benda = lapis === 'lengan-depan' ? [] : rencana?.khusus.filter((r) => r.aksi.jenis === 'open-object') ?? [];
   if (!benda.length) return tokohEl;
   return (
     <>

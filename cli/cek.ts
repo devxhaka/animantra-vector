@@ -42,6 +42,9 @@ function periksaSpecLanjut(spec: any, dir: string, masalah: string[], saran: str
     const ids = new Set((spec.pemeran ?? []).map((p: any) => p.id));
     for (const t of a.tokoh ?? []) if (!ids.has(t.id)) masalah.push(`adegan[${i}] tokoh "${t.id}" tidak ada di pemeran`);
     if (a.pembicara && a.pembicara !== 'narator' && !ids.has(a.pembicara)) masalah.push(`adegan[${i}] pembicara "${a.pembicara}" tidak ada di pemeran`);
+    for (const t of a.tokoh ?? [])
+      if (t.aksi?.length && ((t.tubuh && t.tubuh !== 'berdiri') || (t.urutan ?? []).some((u: any) => u.tubuh && u.tubuh !== 'berdiri')))
+        saran.push(`adegan[${i}] "${a.id}" ${t.id}: aksi khusus dihitung untuk posisi berdiri; dengan tubuh "${t.tubuh ?? 'berubah'}" tangan bisa meleset`);
     if (a.pembicara && a.pembicara !== 'narator' && !(a.tokoh ?? []).some((t: any) => t.id === a.pembicara)) saran.push(`adegan[${i}] "${a.id}": ${a.pembicara} bicara tapi tidak tampil (mulutnya tidak terlihat)`);
     const kata = String(a.narasi ?? '').split(/\s+/).length;
     if (a.durasi && kata / a.durasi > 3.4) saran.push(`adegan[${i}] "${a.id}" narasi terlalu padat (${kata} kata / ${a.durasi} dtk)`);

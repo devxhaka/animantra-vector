@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EKSPRESI, POSE } from '../shared/tipe';
+import { EKSPRESI, POSE, POSISI_TUBUH } from '../shared/tipe';
 
 const kf = z.object({
   prop: z.enum(['x', 'y', 'skala', 'rotasi', 'opasitas']),
@@ -30,6 +30,7 @@ const label = z.object({
 const pose = z.enum(POSE as unknown as [string, ...string[]]);
 const ekspresi = z.enum(EKSPRESI as unknown as [string, ...string[]]);
 const lihat = z.enum(['depan', 'kiri', 'kanan', 'atas', 'bawah']);
+const tubuh = z.enum(POSISI_TUBUH as unknown as [string, ...string[]]);
 const modeAnimasi = z.enum(['existing', 'special', 'auto']);
 const tokoh = z.object({
   id: z.string(),
@@ -40,7 +41,9 @@ const tokoh = z.object({
   pose: pose.optional(),
   ekspresi: ekspresi.optional(),
   lihat: lihat.optional(),
-  urutan: z.array(z.object({ pada: z.number().min(0), pose: pose.optional(), ekspresi: ekspresi.optional(), lihat: lihat.optional(), hadap: z.enum(['kiri', 'kanan']).optional() })).optional(),
+  urutan: z.array(z.object({ pada: z.number().min(0), pose: pose.optional(), ekspresi: ekspresi.optional(), lihat: lihat.optional(), hadap: z.enum(['kiri', 'kanan']).optional(), tubuh: tubuh.optional() })).optional(),
+  tubuh: tubuh.optional(),
+  lenganDiDepan: z.boolean().optional(),
   jalan: z.object({ ke: z.number(), mulai: z.number(), selesai: z.number() }).nullable().optional(),
   z: z.number().optional(),
   siluet: z.boolean().optional(),

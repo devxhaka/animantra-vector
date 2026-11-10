@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Ekspresi, Karakter, Lihat, Pose } from '../../shared/tipe';
+import type { Ekspresi, Karakter, Lihat, PosisiTubuh, Pose } from '../../shared/tipe';
 
 // Tokoh boneka (cut-out) gaya vector 3D: garis tepi tegas + 3 nada (dasar, bayangan, kilau).
 // Koordinat lokal: titik (0,0) = tengah telapak kaki, sumbu y ke atas negatif. Menghadap kanan (3/4).
@@ -31,6 +31,10 @@ export const PARAM_POSE: Record<Pose, ParamPose> = {
   meraih: { dep: [-58, -20], bel: [-42, -24], kepala: -2, badan: -6 },
   menjelaskan: { dep: [-52, -62], bel: [-18, -48], kepala: 2, badan: 0, gerak: 'jelaskan' },
   jalan: { dep: [0, -10], bel: [0, -10], kepala: 0, badan: -2 },
+  // ---- Phase B: interaksi ----
+  memeluk: { dep: [-62, -46], bel: [-58, -50], kepala: 7, badan: -5 },
+  merangkul: { dep: [-44, 36], bel: [8, -4], kepala: 8, badan: -3 },
+  'menyeka-mata': { dep: [-38, -146], bel: [8, -4], kepala: 10, badan: 3 },
 };
 
 export type ParamEkspresi = {
@@ -43,6 +47,8 @@ export type ParamEkspresi = {
   bulat?: boolean; // mulut "O"
   pipi: number;
   miring?: number;
+  /** 0..1 air mata (garis di pipi + tetes jatuh). Kosong/0 = tanpa air mata (perilaku lama). */
+  air?: number;
 };
 export const PARAM_EKSPRESI: Record<Ekspresi, ParamEkspresi> = {
   netral: { alis: [0, 0], buka: 1, pupil: 1, senyum: 0.3, mulut: 0, pipi: 0.25 },
@@ -54,6 +60,8 @@ export const PARAM_EKSPRESI: Record<Ekspresi, ParamEkspresi> = {
   sedih: { alis: [17, 0], buka: 0.62, pupil: 1, senyum: -0.85, mulut: 0, pipi: 0.1 },
   serius: { alis: [-15, -4], buka: 0.84, pupil: 1, senyum: -0.05, mulut: 0, pipi: 0.1 },
   bingung: { alis: [10, 8], alisKanan: [-8, 0], buka: 0.95, pupil: 1, senyum: -0.15, mulut: 0.04, pipi: 0.15, miring: 8 },
+  menangis: { alis: [20, 2], buka: 0.66, pupil: 1, senyum: -0.9, mulut: 0.22, pipi: 0.45, air: 1 },
+  terpejam: { alis: [-2, 1], buka: 0.04, pupil: 1, senyum: 0.25, mulut: 0, pipi: 0.3 },
 };
 export const LIHAT: Record<Lihat, [number, number]> = { depan: [0.35, 0], kiri: [-1, 0], kanan: [1, 0], atas: [0.3, -1], bawah: [0.3, 1] };
 
@@ -79,7 +87,56 @@ export function campurEkspresi(a: ParamEkspresi, b: ParamEkspresi, t: number): P
     bulat: t < 0.5 ? a.bulat : b.bulat,
     pipi: lerp(a.pipi, b.pipi, t),
     miring: lerp(a.miring ?? 0, b.miring ?? 0, t),
+    ...(a.air || b.air ? { air: lerp(a.air ?? 0, b.air ?? 0, t) } : {}),
   };
+}
+
+// ---------- posisi tubuh bawah (Phase B) ----------
+/**
+ * Sudut kaki [paha, betis] (derajat, konvensi rotate yang sama dengan lengan: 0 = lurus ke bawah,
+ * −90 = ke depan, +90 = ke belakang; betis relatif terhadap paha) + `rebah` 0..1 (berbaring telentang).
+ * Pinggul diturunkan otomatis sampai titik terendah kaki menyentuh lantai (lihat `turunTubuh`).
+ */
+export type ParamTubuh = { kakiDep: [number, number]; kakiBel: [number, number]; rebah: number };
+export const PARAM_TUBUH: Record<PosisiTubuh, ParamTubuh> = {
+  berdiri: { kakiDep: [0, 0], kakiBel: [0, 0], rebah: 0 },
+  'duduk-bersila': { kakiDep: [-84, 152], kakiBel: [-74, 146], rebah: 0 },
+  berlutut: { kakiDep: [-6, 98], kakiBel: [4, 88], rebah: 0 },
+  berbaring: { kakiDep: [0, 0], kakiBel: [-4, 4], rebah: 1 },
+};
+export function campurTubuh(a: ParamTubuh, b: ParamTubuh, t: number): ParamTubuh {
+  return {
+    kakiDep: [lerp(a.kakiDep[0], b.kakiDep[0], t), lerp(a.kakiDep[1], b.kakiDep[1], t)],
+    kakiBel: [lerp(a.kakiBel[0], b.kakiBel[0], t), lerp(a.kakiBel[1], b.kakiBel[1], t)],
+    rebah: lerp(a.rebah, b.rebah, t),
+  };
+}
+const rad = (d: number) => (d * Math.PI) / 180;
+const smooth01 = (x: number) => {
+  const v = Math.max(0, Math.min(1, x));
+  return v * v * (3 - 2 * v);
+};
+/** Lutut & telapak satu kaki relatif pinggul (koordinat lokal, y ke bawah positif). */
+export function sendiKaki(panjangKaki: number, sudut: [number, number]) {
+  const P = panjangKaki / 2;
+  const a1 = rad(sudut[0]), a2 = rad(sudut[0] + sudut[1]);
+  const lutut = { x: -Math.sin(a1) * P, y: Math.cos(a1) * P };
+  const telapak = { x: lutut.x - Math.sin(a2) * P, y: lutut.y + Math.cos(a2) * P };
+  return { lutut, telapak };
+}
+/**
+ * Berapa px tubuh turun supaya titik terendah kaki (telapak, atau lutut + tebal kaki) tepat di lantai.
+ * Berdiri lurus → 0 persis.
+ */
+export function turunTubuh(panjangKaki: number, tebalKaki: number, t: ParamTubuh) {
+  let terendah = 0;
+  for (const sudut of [t.kakiDep, t.kakiBel]) {
+    const { lutut, telapak } = sendiKaki(panjangKaki, sudut);
+    // lutut menjadi tumpuan saat telapak naik di atasnya (berlutut/bersila): tambah setengah tebal kaki, halus
+    const tumpuLutut = lutut.y + tebalKaki * 0.5 * smooth01((lutut.y - telapak.y) / tebalKaki + 0.5);
+    terendah = Math.max(terendah, telapak.y, tumpuLutut);
+  }
+  return panjangKaki - terendah;
 }
 
 // ---------- ukuran per usia ----------
@@ -111,6 +168,10 @@ export type StatusTokoh = {
   lengan?: { dep?: [number, number]; bel?: [number, number] };
   /** Opsional: benda di tangan (senter). */
   pegang?: { dep?: BendaTangan; bel?: BendaTangan };
+  /** Opsional (Phase B): posisi tubuh bawah. Kosong = berdiri dengan kaki lurus lama (piksel identik). */
+  tubuh?: ParamTubuh;
+  /** Opsional: hanya gambar sebagian (untuk lengan yang melingkari tokoh lain). Kosong = semua. */
+  lapis?: 'tanpa-lengan-depan' | 'lengan-depan';
 };
 
 /**
@@ -281,12 +342,44 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
     );
   };
 
+  // ---- Phase B: kaki bertekuk (hanya bila s.tubuh diisi; tanpa itu jalur lama di atas dipakai persis) ----
+  const tb = s.tubuh;
+  const panjangKakiTotal = -pinggulY;
+  // seberapa "terlipat" kaki (0 = lurus): gamis/jubah memendek sehalus itu sehingga paha/betis berkain terlihat
+  const tekuk = tb ? smooth01(Math.max(Math.abs(tb.kakiDep[0]) + Math.abs(tb.kakiDep[1]), Math.abs(tb.kakiBel[0]) + Math.abs(tb.kakiBel[1])) / 60) : 0;
+  const KakiTekuk = ({ x, sudut, belakang }: { x: number; sudut: [number, number]; belakang?: boolean }) => {
+    const { lutut, telapak } = sendiKaki(panjangKakiTotal, sudut);
+    const kain = panjang ? w.atasan : w.bawahan;
+    const warna = belakang ? gelap(kain, 0.12) : kain;
+    const tebal = panjang ? tebalKaki * 1.3 : tebalKaki;
+    const aBetis = sudut[0] + sudut[1];
+    // betis berhenti sedikit sebelum telapak; sepatu menutupi ujungnya (sama seperti kaki lurus lama)
+    const ujung = { x: telapak.x + Math.sin(rad(aBetis)) * 20, y: telapak.y - Math.cos(rad(aBetis)) * 20 };
+    const d = `M 0 -10 L ${lutut.x} ${lutut.y} L ${ujung.x} ${ujung.y}`;
+    return (
+      <g transform={`translate(${x} ${pinggulY})`}>
+        {/* dua goresan (garis tepi lalu isi) → tanpa sambungan terlihat di lutut */}
+        <path d={d} fill="none" stroke={GARIS} strokeWidth={tebal + TEBAL * 2} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={d} fill="none" stroke={warna} strokeWidth={tebal} strokeLinecap="round" strokeLinejoin="round" />
+        <g transform={`translate(${telapak.x} ${telapak.y}) rotate(${aBetis})`}>
+          <path
+            d={`M ${-tebalKaki * 0.55} -30 h ${tebalKaki * 1.25} a ${tebalKaki * 0.42} ${tebalKaki * 0.42} 0 0 1 0 ${tebalKaki * 0.62} h ${-tebalKaki * 1.25} z`}
+            fill={belakang ? gelap(w.sepatu, 0.12) : w.sepatu}
+            stroke={GARIS}
+            strokeWidth={TEBAL}
+            strokeLinejoin="round"
+          />
+        </g>
+      </g>
+    );
+  };
+
   const sudutKaki = berjalan ? langkah * 22 : 0;
   const pisahKaki = R * 0.3;
 
   // badan
   const atasBadan = bahuY;
-  const bawahBadan = panjang ? -26 : jaket ? pinggulY + R * 0.62 : k.pakaian === 'hijab-kasual' || k.pakaian === 'rambut-panjang' ? pinggulY + R * 0.75 : pinggulY + R * 0.28;
+  const bawahBadan = panjang ? (tb ? -26 + (pinggulY + R * 0.28 + 26) * tekuk : -26) : jaket ? pinggulY + R * 0.62 : k.pakaian === 'hijab-kasual' || k.pakaian === 'rambut-panjang' ? pinggulY + R * 0.75 : pinggulY + R * 0.28;
   const lebarBawah = panjang ? lebarBadan * 1.22 : lebarBadan * 1.04;
   const pathBadan = `M ${-lebarBadan / 2} ${atasBadan + R * 0.25}
     Q ${-lebarBadan / 2} ${atasBadan} ${-lebarBadan / 2 + R * 0.3} ${atasBadan}
@@ -344,6 +437,27 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
     const [sudut, naik] = kiri ? e.alis : e.alisKanan ?? e.alis;
     const y = ey - R * 0.25 - naik * 0.9;
     return <rect x={cx - R * 0.12} y={y - 5} width={R * 0.24} height={10} rx={5} fill={gelap(w.rambut, 0.1)} transform={`rotate(${kiri ? -sudut : sudut} ${cx} ${y})`} />;
+  };
+  /** Air mata: garis basah di pipi + tetes yang meluncur (fase dari s.t → deterministik). Alfa per elemen, tanpa opacity grup. */
+  const AirMata = ({ kiri, kanan }: { kiri: number; kanan: number }) => {
+    const a = Math.min(1, e.air ?? 0);
+    return (
+      <g>
+        {[kiri, kanan].map((cx, i) => {
+          const y0 = ey + R * 0.1;
+          const y1 = fy + R * 0.5;
+          const fase = (s.t * 0.75 + i * 0.47 + seed) % 1;
+          const ty = y0 + (y1 - y0) * fase;
+          return (
+            <g key={i}>
+              <path d={`M ${cx} ${y0} Q ${cx - R * 0.05} ${(y0 + y1) / 2} ${cx + R * 0.01} ${y1}`} stroke="#8fd0f7" strokeOpacity={0.85 * a} strokeWidth={R * 0.075} fill="none" strokeLinecap="round" />
+              <path d={`M ${cx + R * 0.012} ${y0 + R * 0.04} Q ${cx - R * 0.03} ${(y0 + y1) / 2} ${cx + R * 0.02} ${y1 - R * 0.06}`} stroke="#ffffff" strokeOpacity={0.7 * a} strokeWidth={R * 0.022} fill="none" strokeLinecap="round" />
+              <circle cx={cx + R * 0.005} cy={ty} r={R * 0.05} fill="#8fd0f7" fillOpacity={a * (1 - fase * 0.6)} stroke={GARIS} strokeOpacity={0.5 * a * (1 - fase * 0.6)} strokeWidth={2} />
+            </g>
+          );
+        })}
+      </g>
+    );
   };
   const mulutBuka = Math.min(1, Math.max(e.mulut, s.bicara * 0.95));
   const Mulut = () => {
@@ -465,14 +579,21 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
       <path d={`M ${fx - R * 0.6} ${fy + R * 0.2} Q ${fx - R * 0.5} ${fy + R * 0.95} ${fx + R * 0.05} ${fy + R * 1.0} Q ${fx + R * 0.6} ${fy + R * 0.9} ${fx + R * 0.66} ${fy + R * 0.2} Q ${fx + R * 0.3} ${fy + R * 0.6} ${fx} ${fy + R * 0.58} Q ${fx - R * 0.3} ${fy + R * 0.6} ${fx - R * 0.6} ${fy + R * 0.2} Z`} fill={k.usia === 'tua' ? '#e8e4dc' : w.rambut} stroke={GARIS} strokeWidth={TEBAL} strokeLinejoin="round" />
     ) : null;
 
+  // turun ke lantai (duduk/berlutut) lalu rebah (berbaring telentang, kepala ke belakang); kaki di (0,0) jadi poros.
+  // Saat berbaring, x tokoh = tengah badan, dan badan diangkat setinggi jari-jari kepala agar tidak menembus lantai.
+  const tubuhTransform = tb
+    ? `translate(${H * 0.5 * tb.rebah} ${turunTubuh(panjangKakiTotal, tebalKaki, tb) - R * 0.95 * tb.rebah}) rotate(${-90 * tb.rebah})`
+    : '';
   const isi = (
     <g transform={`translate(0 ${-ayun})`}>
+      {s.lapis !== 'lengan-depan' ? (
+      <>
       {/* lengan & kaki belakang */}
-      <Kaki x={-pisahKaki * 0.6} sudut={-sudutKaki} belakang />
+      {tb ? <KakiTekuk x={-pisahKaki * 0.6} sudut={tb.kakiBel} belakang /> : <Kaki x={-pisahKaki * 0.6} sudut={-sudutKaki} belakang />}
       <Lengan x={bahuBel} sudut={bel} belakang benda={s.pegang?.bel} />
       <g transform={`rotate(${badanMiring} 0 ${pinggulY})`}>
         <RambutBelakang />
-        <Kaki x={pisahKaki} sudut={sudutKaki} />
+        {tb ? <KakiTekuk x={pisahKaki} sudut={tb.kakiDep} /> : <Kaki x={pisahKaki} sudut={sudutKaki} />}
         {/* badan */}
         <g transform={`translate(0 ${bahuY}) scale(1 ${1 + napas}) translate(0 ${-bahuY})`}>
           <path d={pathBadan} fill={w.atasan} stroke={GARIS} strokeWidth={TEBAL} strokeLinejoin="round" />
@@ -572,27 +693,42 @@ export const TubuhTokoh: React.FC<{ k: Karakter; s: StatusTokoh }> = ({ k, s }) 
             })()
           )}
           <Mulut />
+          {e.air ? <AirMata kiri={fx - ex * jarakKiri} kanan={fx + ex * jarakKanan} /> : null}
           <Hijab />
           <Kopiah />
         </g>
       </g>
+      </>
+      ) : null}
       {/* lengan depan */}
-      <g transform={`rotate(${badanMiring} 0 ${pinggulY})`}>
-        <Lengan x={bahuDep} sudut={dep} benda={s.pegang?.dep} />
-      </g>
+      {s.lapis !== 'tanpa-lengan-depan' ? (
+        <g transform={`rotate(${badanMiring} 0 ${pinggulY})`}>
+          <Lengan x={bahuDep} sudut={dep} benda={s.pegang?.dep} />
+        </g>
+      ) : null}
     </g>
   );
 
   return (
     <g>
-      <ellipse cx={0} cy={4} rx={R * 1.15} ry={R * 0.18} fill="#000" opacity={s.siluet ? 0.25 : 0.14} />
-      {s.siluet ? <g style={{ filter: 'brightness(0)' }} opacity={0.94}>{isi}</g> : isi}
+      {s.lapis !== 'lengan-depan' ? (
+        <ellipse cx={0} cy={4} rx={R * 1.15 + (tb ? tb.rebah * (H * 0.5 - R * 1.15) : 0)} ry={R * 0.18} fill="#000" opacity={s.siluet ? 0.25 : 0.14} />
+      ) : null}
+      {tb ? (
+        <g transform={tubuhTransform}>{s.siluet ? <g style={{ filter: 'brightness(0)' }} opacity={0.94}>{isi}</g> : isi}</g>
+      ) : s.siluet ? (
+        <g style={{ filter: 'brightness(0)' }} opacity={0.94}>{isi}</g>
+      ) : (
+        isi
+      )}
       {(['dep', 'bel'] as const).map((sisi) => {
         const b = s.pegang?.[sisi];
         if (!b || b.jenis !== 'senter' || b.sinar <= 0) return null;
+        if ((sisi === 'dep' && s.lapis === 'tanpa-lengan-depan') || (sisi === 'bel' && s.lapis === 'lengan-depan')) return null;
         const sudut = sisi === 'dep' ? dep : bel;
         // HARUS sama dengan rantai transform lengan di `isi`: translate(ayun) → [rotate condong: hanya lengan depan] → bahu → siku
         const rantai =
+          (tb ? tubuhTransform + ' ' : '') +
           `translate(0 ${-ayun}) ` +
           (sisi === 'dep' ? `rotate(${badanMiring} 0 ${pinggulY}) ` : '') +
           `translate(${sisi === 'dep' ? bahuDep : bahuBel} ${bahuY + R * 0.12}) rotate(${sudut[0]}) translate(0 ${L1}) rotate(${sudut[1]})`;
