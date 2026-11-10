@@ -12,7 +12,9 @@ import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, dedupPeringatan, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
 import { cekAksiSpec, cekKartuCerita } from '../cli/cek';
-import { keadaanAkhir } from '../remotion/cerita';
+import { getarApi, keadaanAkhir, kuatKilat } from '../remotion/cerita';
+import { goyangKamera, transformParallax } from '../remotion/kamera';
+import { acak, susunKerumunan } from '../remotion/kerumunan';
 import { EKSPRESI, POSE, POSISI_TUBUH } from '../shared/tipe';
 import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
 import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
@@ -865,6 +867,101 @@ console.log('Phase B: posisi tubuh, pose interaksi, ekspresi emosi');
   uji('prompt Mode Tempel memuat daftar pose/ekspresi/tubuh terbaru', () => {
     const p = buatPromptTempel({ format: formatDari('cerita'), topik: 't', durasiTarget: 60, gaya: GAYA_BAWAAN, suara: 'x', musik: 'tanpa', pemeran: [KAK] });
     for (const kata of ['merangkul', 'menangis', 'duduk-bersila']) pastikan(p.includes(kata), 'kurang ' + kata);
+  });
+}
+
+// ======================= Phase C: kamera & cahaya =======================
+console.log('Phase C: kamera, parallax, cahaya, efek');
+{
+  uji('goyang 0 → tepat nol (transform kamera lama identik); goyang > 0 halus & terbatas', () => {
+    const n = goyangKamera(0, 3.3);
+    pastikan(n.x === 0 && n.y === 0 && n.r === 0, JSON.stringify(n));
+    for (let t = 0; t < 10; t += 1 / 30) {
+      const g = goyangKamera(1, t), h = goyangKamera(1, t + 1 / 30);
+      pastikan(Math.abs(g.x) <= 14 && Math.abs(g.y) <= 11 && Math.abs(g.r) <= 0.45, 'batas');
+      pastikan(Math.abs(h.x - g.x) < 2 && Math.abs(h.y - g.y) < 2, 'lompatan antar frame');
+    }
+  });
+  uji('parallax: koreksi C = T⁻¹∘Tₚ benar secara numerik (p = 0, 0,6, 1, 1,7)', () => {
+    const W = 1080, H = 1920, c = { x: W / 2, y: H / 2 };
+    const kam = { Z: 1.35, kx: 0.06, ky: 0.05 };
+    const T = (Z: number, kx: number, ky: number) => (p: { x: number; y: number }) => ({ x: c.x + Z * (p.x - c.x - kx * W), y: c.y + Z * (p.y - c.y - ky * H) });
+    for (const p of [0, 0.6, 1, 1.7]) {
+      const m = transformParallax(p, kam, W, H).match(/-?\d[\d.]*(?:e-?\d+)?/g)!.map(Number); // [tx, ty, s, tx2, ty2]
+      const C = (q: { x: number; y: number }) => ({ x: c.x + m[0] + m[2] * (q.x - c.x + m[3]), y: c.y + m[1] + m[2] * (q.y - c.y + m[4]) });
+      const Zp = 1 + (kam.Z - 1) * p;
+      for (const q of [{ x: 0, y: 0 }, { x: 800, y: 1500 }, { x: 540, y: 960 }]) {
+        const a = T(kam.Z, kam.kx, kam.ky)(C(q)), b = T(Zp, kam.kx * p, kam.ky * p)(q);
+        pastikan(Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6, `p=${p}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`);
+      }
+    }
+  });
+  uji('kilat: nol sebelum & lama sesudah, puncak tepat di waktunya, ada kilatan susulan', () => {
+    pastikan(kuatKilat([2], 1.99) === 0 && kuatKilat([2], 2.7) === 0, 'di luar rentang');
+    pastikan(kuatKilat([2], 2) === 1, 'puncak');
+    pastikan(kuatKilat([2], 2.16) > kuatKilat([2], 2.12), 'susulan');
+  });
+  uji('getar api: halus di sekitar 1 (±8%), berbeda per sumber', () => {
+    for (let t = 0; t < 5; t += 0.05) pastikan(Math.abs(getarApi(t, 0) - 1) < 0.08, 'rentang');
+    pastikan(getarApi(1, 0) !== getarApi(1, 1), 'per sumber');
+  });
+  uji('skema menerima kamera/parallax/lampu/efek/tampak; menolak nilai di luar batas', () => {
+    const sp = (a: object) => ({ ...SPEC_CONTOH, adegan: [{ id: 'a', narasi: 'x', durasi: 3, ...a }] });
+    valid(sp({
+      kamera: { dari: { zoom: 1, rotasi: -3 }, ke: { zoom: 1.3, rotasi: 5 }, easing: 'linear', goyang: 0.4 }, latarParallax: 0.6,
+      aset: [{ file: 'a.svg', x: 0.5, y: 0.5, lebar: 0.2, parallax: 1.6 }], efek: [{ jenis: 'api', x: 0.5, y: 0.8, skala: 2 }, { jenis: 'asap', x: 0.5, y: 0.6 }],
+      suasana: { lampu: [{ x: 0.5, y: 0.6, jangkau: 0.5, kedip: false }], gelapLampu: 0.8, kilat: [1.2] },
+      tokoh: [{ id: 'a', x: 0.3, tampak: 'belakang', kabur: 3 }],
+    }));
+    for (const salah of [{ kamera: { ke: { rotasi: 45 } } }, { efek: [{ jenis: 'petir', x: 0, y: 0 }] }, { suasana: { gelapLampu: 2 } }, { tokoh: [{ id: 'a', x: 0, tampak: 'samping' }] }])
+      pastikan(!skemaSpec.safeParse(sp(salah)).success, 'harus ditolak: ' + JSON.stringify(salah));
+  });
+}
+
+// ======================= Phase D: kerumunan =======================
+console.log('Phase D: kerumunan');
+{
+  const W = 1080, H = 1920;
+  const dasar = { jumlah: 120, area: { x1: 0.1, x2: 0.9, y1: 0.6, y2: 0.9 } };
+  uji('acak berbenih: urutan sama untuk benih sama, beda untuk benih beda', () => {
+    const a = acak(5), b = acak(5), c = acak(6);
+    const xa = [a(), a(), a()], xb = [b(), b(), b()], xc = [c(), c(), c()];
+    pastikan(JSON.stringify(xa) === JSON.stringify(xb) && JSON.stringify(xa) !== JSON.stringify(xc), 'benih');
+    pastikan(xa.every((v) => v >= 0 && v < 1), 'rentang');
+  });
+  uji('susunan deterministik & jumlah tepat; dibatasi 200', () => {
+    pastikan(JSON.stringify(susunKerumunan(dasar, 1.23, W, H)) === JSON.stringify(susunKerumunan(dasar, 1.23, W, H)), 'determinisme');
+    pastikan(susunKerumunan(dasar, 0, W, H).length === 120, 'jumlah');
+    pastikan(susunKerumunan({ ...dasar, jumlah: 999 }, 0, W, H).length === 200, 'batas 200');
+  });
+  uji('diam/gelisah tetap di dalam area; urut jauh→dekat; perspektif: yang dekat lebih tinggi', () => {
+    for (const gerak of ['diam', 'gelisah', 'sorak'] as const) {
+      const f = susunKerumunan({ ...dasar, gerak }, 2.5, W, H);
+      for (const p of f) pastikan(p.x >= 0.1 * W - p.h * 0.05 && p.x <= 0.9 * W + p.h * 0.05 && p.y >= 0.6 * H && p.y <= 0.9 * H, gerak + ' keluar area');
+      for (let i = 1; i < f.length; i++) pastikan(f[i].y >= f[i - 1].y, 'urutan');
+      const jauh = f.slice(0, 20).reduce((s, p) => s + p.h, 0), dekat = f.slice(-20).reduce((s, p) => s + p.h, 0);
+      pastikan(dekat > jauh * 1.8, 'perspektif');
+    }
+  });
+  uji('jalan/lari: bergerak ke arah hadap, berputar masuk lagi di dalam batas, lari lebih cepat', () => {
+    const k = { ...dasar, jumlah: 30, gerak: 'jalan' as const, arah: 'kanan' as const };
+    const a = susunKerumunan(k, 0, W, H), b = susunKerumunan(k, 0.5, W, H);
+    // cocokkan per figur lewat y (y tidak berubah saat berjalan)
+    let maju = 0;
+    for (const p of a) { const q = b.find((x) => x.y === p.y)!; if (q.x > p.x) maju++; }
+    pastikan(maju >= 27, `hanya ${maju}/30 maju ke kanan`);
+    for (let t = 0; t < 40; t += 0.7) for (const p of susunKerumunan(k, t, W, H)) pastikan(p.x >= (0.1 - 0.12) * W - 1 && p.x <= (0.9 + 0.12) * W + 1, 'keluar batas');
+    const jarak = (gerak: 'jalan' | 'lari') => {
+      const kk = { ...k, gerak }, p0 = susunKerumunan(kk, 0, W, H)[0], p1 = susunKerumunan(kk, 0.2, W, H).find((x) => x.y === p0.y)!;
+      return p1.x - p0.x;
+    };
+    pastikan(jarak('lari') > jarak('jalan') * 2, 'lari lebih cepat');
+  });
+  uji('skema: kerumunan valid diterima; area terbalik / jumlah 0 / gerak salah ditolak', () => {
+    const sp = (k: object) => ({ ...SPEC_CONTOH, adegan: [{ id: 'a', narasi: 'x', durasi: 3, kerumunan: [k] }] });
+    valid(sp({ ...dasar, tinggi: [0.05, 0.2], gerak: 'lari', arah: 'kiri', siluet: true, benih: 4, z: 6, kabur: 3, palet: ['#112233'] }));
+    for (const salah of [{ ...dasar, area: { x1: 0.9, x2: 0.1, y1: 0.6, y2: 0.9 } }, { ...dasar, jumlah: 0 }, { ...dasar, gerak: 'terbang' }])
+      pastikan(!skemaSpec.safeParse(sp(salah)).success, 'harus ditolak: ' + JSON.stringify(salah));
   });
 }
 

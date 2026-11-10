@@ -143,6 +143,44 @@ export type Aset = {
   animasi?: Keyframe[];
   loop?: 'goyang' | 'melayang' | 'putar' | 'denyut' | null;
   z?: number;
+  /** Kedalaman parallax: 1 = bawaan, <1 = jauh (bergerak lebih lambat), >1 = latar depan (lebih cepat). */
+  parallax?: number;
+};
+
+export type TitikKamera = { zoom?: number; x?: number; y?: number; /** derajat, miring (dutch angle) */ rotasi?: number };
+export type EfekAdegan = {
+  jenis: 'api' | 'asap';
+  x: number; // 0..1 dasar efek (api: pangkal nyala)
+  y: number;
+  skala?: number; // 1 = api lampu/obor sedang (±0,1 lebar layar)
+  z?: number; // < 5 di belakang tokoh, >= 5 di depan
+};
+export type GerakKerumunan = 'diam' | 'gelisah' | 'jalan' | 'lari' | 'sorak';
+export type Kerumunan = {
+  jumlah: number; // 1..200
+  /** area kaki (0..1). y1 = baris terjauh, y2 = baris terdekat. */
+  area: { x1: number; x2: number; y1: number; y2: number };
+  /** tinggi figur [di y1, di y2] relatif tinggi layar (bawaan [0.07, 0.18]) */
+  tinggi?: [number, number];
+  gerak?: GerakKerumunan; // bawaan "gelisah"
+  arah?: 'kiri' | 'kanan' | 'acak'; // arah hadap & jalan (bawaan acak; jalan/lari bawaan kanan)
+  kecepatan?: number; // lebar layar per detik untuk jalan/lari (bawaan 0.05 / 0.16)
+  palet?: string[]; // warna pakaian; kosong = palet bumi bawaan
+  /** peluang penutup kepala 0..1 (sisanya rambut) */
+  hijab?: number;
+  kopiah?: number;
+  siluet?: boolean; // semua hitam (sosok jauh/gelap)
+  benih?: number; // acak tetap (bawaan 1)
+  z?: number; // < 5 di belakang tokoh (bawaan), >= 5 di depan
+  kabur?: number; // blur px (kerumunan latar depan yang tidak fokus)
+};
+
+export type Lampu = {
+  x: number; // 0..1 posisi sumber cahaya (ikut kamera)
+  y: number;
+  warna?: string; // bawaan oranye hangat
+  jangkau?: number; // radius terang relatif lebar layar (bawaan 0.45)
+  kedip?: boolean; // nyala bergetar seperti api (bawaan true)
 };
 
 export type Label = {
@@ -163,7 +201,20 @@ export type Adegan = {
   aset?: Aset[];
   label?: Label[];
   kartu?: { tag?: string; teks: string; nilai?: string } | null;
-  kamera?: { dari?: { zoom?: number; x?: number; y?: number }; ke?: { zoom?: number; x?: number; y?: number } } | null;
+  kamera?: {
+    dari?: TitikKamera;
+    ke?: TitikKamera;
+    /** kurva gerak kamera (bawaan "halus") */
+    easing?: 'halus' | 'linear' | 'masuk' | 'keluar';
+    /** 0..1 guncangan kamera genggam (halus, deterministik) */
+    goyang?: number;
+  } | null;
+  /** Kedalaman latar untuk parallax: 1 = ikut kamera penuh (bawaan), <1 = lebih jauh (bergerak lebih lambat). */
+  latarParallax?: number;
+  /** Efek prosedural di dunia adegan (ikut kamera). */
+  efek?: EfekAdegan[];
+  /** Kerumunan figur sederhana (latar belakang/depan), ikut kamera. */
+  kerumunan?: Kerumunan[];
   sfx?: { file: string; pada: number; volume?: number }[];
   /** potong | fade | geser | hitam (masuk dari layar hitam, ±0,4 dtk) */
   transisi?: 'potong' | 'fade' | 'geser' | 'hitam';
@@ -236,6 +287,10 @@ export type TokohAdegan = {
   tubuh?: PosisiTubuh;
   /** Lengan depan digambar di atas SEMUA tokoh (untuk memeluk/merangkul tokoh di depannya). */
   lenganDiDepan?: boolean;
+  /** "belakang" = tampak punggung (wajah tidak digambar), untuk bidikan dari balik bahu. */
+  tampak?: 'depan' | 'belakang';
+  /** Blur (px) untuk tokoh latar depan yang tidak fokus. */
+  kabur?: number;
   jalan?: { ke: number; mulai: number; selesai: number } | null;
   z?: number;
   siluet?: boolean; // tampil sebagai bayangan hitam (sosok yang tidak boleh/tidak perlu digambar jelas)
@@ -310,6 +365,12 @@ export type Suasana = {
   gempa?: number; // 0..1 kekuatan guncangan
   cahaya?: { x: number; y: number; warna?: string } | null; // sorot cahaya dari langit
   vinyet?: boolean;
+  /** Sumber cahaya hangat: di luar jangkauannya gelap (lihat `gelapLampu`). Ikut kamera. */
+  lampu?: Lampu[] | null;
+  /** 0..1 kegelapan di luar cahaya lampu (bawaan 0.78). */
+  gelapLampu?: number;
+  /** Detik-detik kilat (kilatan putih singkat). */
+  kilat?: number[] | null;
 };
 
 export type Spec = {

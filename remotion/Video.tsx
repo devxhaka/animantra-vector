@@ -14,9 +14,11 @@ import {
 import type { Adegan, Aset, Gaya, Keyframe, Label, Spec } from '../shared/tipe';
 import { huruf, hurufMono, hurufTeks } from './huruf';
 import { BerkasCtx, useBerkas } from './berkas';
+import { goyangKamera, transformParallax } from './kamera';
+import { KerumunanView } from './kerumunan';
 import { formatDari } from '../shared/formats';
 import { TEKS_KLASIK, teksKontras } from '../shared/gaya-bawaan';
-import { LapisanSuasana, TokohAdeganView, cariKarakter, guncangan, keadaanAkhir, type KeadaanAkhir } from './cerita';
+import { EfekView, LapisanLampu, LapisanSuasana, TokohAdeganView, cariKarakter, guncangan, keadaanAkhir, type KeadaanAkhir } from './cerita';
 
 export type PropsVideo = {
   spec: Spec;
@@ -85,10 +87,18 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
   // Kamera
   const k0 = { zoom: 1, x: 0, y: 0, ...(adegan.kamera?.dari ?? {}) };
   const k1 = { ...k0, ...(adegan.kamera?.ke ?? {}) };
-  const kp = interpolate(frame, [0, durationInFrames], [0, 1], { extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) });
+  const kp = interpolate(frame, [0, durationInFrames], [0, 1], {
+    extrapolateRight: 'clamp',
+    easing: adegan.kamera?.easing ? easingDari(adegan.kamera.easing) : Easing.inOut(Easing.cubic),
+  });
   const zoom = k0.zoom + (k1.zoom - k0.zoom) * kp;
   const kx = k0.x + (k1.x - k0.x) * kp;
   const ky = k0.y + (k1.y - k0.y) * kp;
+  // Phase C: kamera miring + guncangan genggam (0 bila tidak dipakai → transform sama persis dengan sebelumnya)
+  const rotKamera = (k0.rotasi ?? 0) + ((k1.rotasi ?? 0) - (k0.rotasi ?? 0)) * kp;
+  const gg = goyangKamera(adegan.kamera?.goyang ?? 0, t);
+  const Z = zoom * (adegan.suasana?.gempa ? 1.03 : 1);
+  const kam = { Z, kx, ky };
 
   const aset = [...(adegan.aset ?? [])].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
   const tokoh = [...(adegan.tokoh ?? [])].sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || (a.y ?? 0.8) - (b.y ?? 0.8));
@@ -101,14 +111,22 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
       {adegan.latar ? null : <Latar />}
       <AbsoluteFill
         style={{
-          transform: `translate(${g.x}px, ${g.y}px) rotate(${g.r}deg) scale(${zoom * (adegan.suasana?.gempa ? 1.03 : 1)}) translate(${-kx * 100}%, ${-ky * 100}%)`,
+          transform: `translate(${g.x + gg.x}px, ${g.y + gg.y}px) rotate(${g.r + rotKamera + gg.r}deg) scale(${Z}) translate(${-kx * 100}%, ${-ky * 100}%)`,
           transformOrigin: '50% 50%',
         }}
       >
-        {adegan.latar ? <Img src={berkas(adegan.latar)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+        {adegan.latar ? (
+          <Parallax p={adegan.latarParallax} kam={kam}>
+            <Img src={berkas(adegan.latar)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          </Parallax>
+        ) : null}
         {aset.filter((a) => (a.z ?? 0) < 5).map((a, i) => (
-          <AsetView key={'a' + i} aset={a} t={t} />
+          <Parallax key={'a' + i} p={a.parallax} kam={kam}>
+            <AsetView aset={a} t={t} />
+          </Parallax>
         ))}
+        {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) < 5 ? <EfekView key={'e' + i} e={e} i={i} /> : null))}
+        {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) < 5 ? <KerumunanView key={'k' + i} k={k} /> : null))}
         {tokoh.map((tk) => (
           <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis={tk.lenganDiDepan ? 'tanpa-lengan-depan' : undefined} />
         ))}
@@ -117,8 +135,13 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
           <TokohAdeganView key={tk.id + '-lengan'} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis="lengan-depan" />
         ))}
         {aset.filter((a) => (a.z ?? 0) >= 5).map((a, i) => (
-          <AsetView key={'d' + i} aset={a} t={t} />
+          <Parallax key={'d' + i} p={a.parallax} kam={kam}>
+            <AsetView aset={a} t={t} />
+          </Parallax>
         ))}
+        {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) >= 5 ? <KerumunanView key={'m' + i} k={k} /> : null))}
+        {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) >= 5 ? <EfekView key={'f' + i} e={e} i={i} /> : null))}
+        {adegan.suasana?.lampu?.length ? <LapisanLampu lampu={adegan.suasana.lampu} gelap={adegan.suasana.gelapLampu} /> : null}
         {(adegan.label ?? []).map((l, i) => (
           <LabelView key={i} label={l} t={t} />
         ))}
@@ -154,6 +177,14 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
       ))}
     </AbsoluteFill>
   );
+};
+
+// ---------------- Kamera sinematik (Phase C) ----------------
+
+const Parallax: React.FC<{ p?: number; kam: { Z: number; kx: number; ky: number }; children: React.ReactNode }> = ({ p, kam, children }) => {
+  const { width, height } = useVideoConfig();
+  if (p === undefined || p === 1) return <>{children}</>;
+  return <AbsoluteFill style={{ transform: transformParallax(p, kam, width, height), transformOrigin: '50% 50%' }}>{children}</AbsoluteFill>;
 };
 
 // ---------------- Kartu cerita & efek layar (POV Bayangkan) ----------------

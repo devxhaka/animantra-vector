@@ -44,6 +44,10 @@ Tetap pakai gaya yang dipilih pengguna di pesanan.
 `tubuh`: `duduk-bersila` / `berlutut` / `berbaring`; pose `memeluk` / `merangkul` / `menyeka-mata`;
 ekspresi `menangis` (air mata) / `terpejam` (doa, tidur). Aturan komposisi pelukan: lihat `panduan/cerita.md`.
 
-## Belum tersedia (tahap berikutnya)
-Kamera menyusuri & dari balik bahu, cahaya lampu hangat, api, kerumunan. Jangan menjanjikan visual itu di naskah;
-pakai pose & suasana yang sudah ada.
+## Kamera & cahaya (Phase C)
+Kamera miring/genggam, menyusuri (parallax), dari balik bahu (`tampak: "belakang"`), lampu hangat berkedip,
+api, asap, kilat. Rincian & angka siap pakai: `panduan/cerita.md` (Bahasa kamera, Suasana).
+
+## Kerumunan (Phase D)
+Rombongan berlari, warga gelisah di kejauhan, massa bersorak (siluet), orang lewat di latar depan:
+`adegan.kerumunan` (lihat `panduan/cerita.md`).

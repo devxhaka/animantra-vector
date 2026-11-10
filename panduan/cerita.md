@@ -65,11 +65,37 @@ menggambar **latar**, lalu mengarahkan tokoh (posisi, pose, ekspresi, arah panda
 - Buka tiap lokasi dengan **gambar lebar** (`zoom` 1). Baris emosional: zoom 1,2–1,45 ke wajah pembicara
   (geser `x` ke arah tokoh, `y` positif ±0,05–0,12 karena wajah ada di atas tengah).
 - Bergantian sudut tiap 2–3 baris agar tidak monoton. Jangan zoom > 1,6.
+- **Sinematik (opsional):** `kamera.dari/ke.rotasi` (derajat, miring ±3–8 untuk tegang/bingung) ·
+  `kamera.easing` `halus`/`linear`/`masuk`/`keluar` · `kamera.goyang` 0..1 (kamera genggam; 0,2–0,4 halus, 0,6+ panik).
+- **Menyusuri (parallax):** `latarParallax` < 1 (mis. 0,6) membuat latar bergerak lebih lambat dari tokoh; aset
+  latar depan (tiang, daun, pagar) `parallax` > 1 (mis. 1,6) + `z` ≥ 5. Pakai dengan zoom/geser `x` yang terus berubah,
+  `easing: "linear"`.
+- **Dari balik bahu:** tokoh pengamat `tampak: "belakang"`, `skala` 2–2,5, `y` 1,25–1,35, `x` 0,25–0,3, `z` 5,
+  `kabur` 2–4; tokoh yang dilihat kecil di kejauhan (`skala` 0,7, `y` ±0,72) di sisi lain layar.
 
 ### Suasana (`suasana`)
 `gelap` 0..1 (malam) · `warnaLangit` (mis. `#8a1e1e` langit merah) · `kabut` · `hujan` ·
 `gempa` 0..1 (guncangan) · `cahaya` `{x,y,warna}` (sorot cahaya dari langit) · `vinyet`.
 Pakai bertahap: ketegangan naik → efek bertambah; resolusi → `cahaya`, efek dikurangi.
+- **Lampu (malam di dalam ruangan):** `lampu: [{ x, y, jangkau?, warna?, kedip? }]` + `gelapLampu` (bawaan 0,78):
+  di luar jangkauan gelap, dekat lampu hangat & bergetar. Koordinat dunia (ikut kamera). Taruh juga `efek` api kecil
+  (`skala` 0,2–0,3) tepat di sumbu pelita/lilin.
+- **Kilat:** `kilat: [detik, …]` (kilatan ganda); cocok dengan `hujan` + SFX guntur.
+- **Efek (`adegan.efek`):** `[{ "jenis": "api" | "asap", x, y, skala?, z? }]`. `skala` 1 = obor, 2–3 = api unggun/kebakaran;
+  `z` ≥ 5 di depan tokoh. `asap` diletakkan sedikit di atas api.
+
+### Kerumunan (`adegan.kerumunan`)
+Banyak figur sederhana (bukan pemeran, tidak bicara) untuk pasar, rombongan, massa:
+```json
+"kerumunan": [{ "jumlah": 60, "area": { "x1": 0, "x2": 1, "y1": 0.7, "y2": 0.86 }, "tinggi": [0.12, 0.2],
+                "gerak": "lari", "arah": "kanan", "benih": 3 }]
+```
+- `area` = posisi kaki; `y1` baris terjauh, `y2` terdekat. `tinggi` [jauh, dekat] relatif tinggi layar
+  (patokan: kerumunan di horizon [0,035, 0,06]; sejajar tokoh di y 0,8 [0,12, 0,2]).
+- `gerak`: `diam` · `gelisah` (bawaan) · `jalan` · `lari` · `sorak` (tangan terangkat). `arah` `kiri`/`kanan`/`acak`.
+- `hijab`, `kopiah` = peluang 0..1; `palet` = warna pakaian; `siluet: true` untuk massa gelap/jauh/misterius.
+- `z` ≥ 5 + `tinggi` besar (±0,45) + `kabur` 3–6 = orang lewat di latar depan. Maks 200 figur per kelompok, 6 kelompok.
+- Ganti `benih` bila susunan kebetulan menutupi tokoh. Kerumunan tidak boleh menutupi wajah pemeran yang bicara.
 
 ### Latar (`latar/*.svg`)
 - SVG **1080×1920** (`viewBox="0 0 1080 1920"`), gaya sama dengan `panduan/aset-vector.md`

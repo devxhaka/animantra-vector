@@ -18,7 +18,9 @@ tokoh, TTS, subtitle karaoke, antrean job, dan pustaka aset semuanya dipakai ula
 | Aksi `flashlight-sweep` (+ FK/IK, bidikan) | `remotion/karakter/aksi/terapkan.ts`, `ik.ts` | Phase 2C ✓ |
 | Aksi `open-object` (buku/map/dokumen, cek jangkauan) | `remotion/karakter/aksi/benda.ts`, `Benda.tsx` | Phase 2D ✓ |
 | Verifikasi routing/fallback (3 mode × 3 aksi) + adegan Mystery lengkap | `scripts/uji.ts` | Phase 2E ✓ |
-| Mesin sinematik (kamera, cahaya, parallax, bukti) | `remotion/sinematik/` | Phase 3 (belum) |
+| Kamera sinematik (miring, genggam, easing), parallax, dari balik bahu | `remotion/kamera.ts`, `remotion/Video.tsx` | Phase 3 ✓ (sebagian) |
+| Cahaya: lampu hangat, kilat; efek api & asap | `remotion/cerita.tsx` (`LapisanLampu`, `EfekView`) | Phase 3 ✓ (sebagian) |
+| Panel bukti (evidence board) & sinar senter yang menerangi gelap | (belum) | Phase 3 (belum) |
 | Kontrol studio khusus mystery + tab Pustaka | `studio/src/` | Phase 4 (belum) |
 
 ## Alur produksi (sama dengan Cerita)

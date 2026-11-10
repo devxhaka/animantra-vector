@@ -19,6 +19,7 @@ const aset = z.object({
   animasi: z.array(kf).optional(),
   loop: z.enum(['goyang', 'melayang', 'putar', 'denyut']).nullable().optional(),
   z: z.number().optional(),
+  parallax: z.number().min(0).max(3).optional(),
 });
 const label = z.object({
   teks: z.string().max(28, 'label maksimal 28 karakter'),
@@ -44,6 +45,8 @@ const tokoh = z.object({
   urutan: z.array(z.object({ pada: z.number().min(0), pose: pose.optional(), ekspresi: ekspresi.optional(), lihat: lihat.optional(), hadap: z.enum(['kiri', 'kanan']).optional(), tubuh: tubuh.optional() })).optional(),
   tubuh: tubuh.optional(),
   lenganDiDepan: z.boolean().optional(),
+  tampak: z.enum(['depan', 'belakang']).optional(),
+  kabur: z.number().min(0).max(40).optional(),
   jalan: z.object({ ke: z.number(), mulai: z.number(), selesai: z.number() }).nullable().optional(),
   z: z.number().optional(),
   siluet: z.boolean().optional(),
@@ -51,6 +54,7 @@ const tokoh = z.object({
   // detail tiap aksi divalidasi oleh validasiAksi() di shared/aksi.ts (satu sumber aturan), lewat `studio cek`
   aksi: z.array(z.object({ jenis: z.string() }).passthrough()).optional(),
 });
+const titikKamera = z.object({ zoom: z.number().positive().optional(), x: z.number().optional(), y: z.number().optional(), rotasi: z.number().min(-30).max(30).optional() });
 export const skemaAdegan = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, 'id adegan: huruf kecil/angka/strip'),
   narasi: z.string().min(1),
@@ -63,8 +67,10 @@ export const skemaAdegan = z.object({
   kartu: z.object({ tag: z.string().optional(), teks: z.string().max(30), nilai: z.string().optional() }).nullable().optional(),
   kamera: z
     .object({
-      dari: z.object({ zoom: z.number().optional(), x: z.number().optional(), y: z.number().optional() }).optional(),
-      ke: z.object({ zoom: z.number().optional(), x: z.number().optional(), y: z.number().optional() }).optional(),
+      dari: titikKamera.optional(),
+      ke: titikKamera.optional(),
+      easing: z.enum(['halus', 'linear', 'masuk', 'keluar']).optional(),
+      goyang: z.number().min(0).max(1).optional(),
     })
     .nullable()
     .optional(),
@@ -87,6 +93,30 @@ export const skemaAdegan = z.object({
     .optional(),
   filter: z.enum(['kilas-balik', 'hitam-putih']).nullable().optional(),
   pudarAkhir: z.number().min(0).nullable().optional(),
+  latarParallax: z.number().min(0).max(3).optional(),
+  kerumunan: z
+    .array(
+      z.object({
+        jumlah: z.number().int().min(1).max(200, 'kerumunan maksimal 200 figur per kelompok'),
+        area: z
+          .object({ x1: z.number(), x2: z.number(), y1: z.number().min(0).max(1.5), y2: z.number().min(0).max(1.5) })
+          .refine((a) => a.x1 < a.x2 && a.y1 <= a.y2, 'area: x1 < x2 dan y1 <= y2'),
+        tinggi: z.tuple([z.number().positive().max(1), z.number().positive().max(1)]).optional(),
+        gerak: z.enum(['diam', 'gelisah', 'jalan', 'lari', 'sorak']).optional(),
+        arah: z.enum(['kiri', 'kanan', 'acak']).optional(),
+        kecepatan: z.number().min(0).max(1).optional(),
+        palet: z.array(z.string()).max(16).optional(),
+        hijab: z.number().min(0).max(1).optional(),
+        kopiah: z.number().min(0).max(1).optional(),
+        siluet: z.boolean().optional(),
+        benih: z.number().int().optional(),
+        z: z.number().optional(),
+        kabur: z.number().min(0).max(40).optional(),
+      }),
+    )
+    .max(6)
+    .optional(),
+  efek: z.array(z.object({ jenis: z.enum(['api', 'asap']), x: z.number(), y: z.number(), skala: z.number().positive().max(6).optional(), z: z.number().optional() })).max(12).optional(),
   pembicara: z.string().nullable().optional(),
   latar: z.string().nullable().optional(),
   suasana: z
@@ -98,6 +128,13 @@ export const skemaAdegan = z.object({
       gempa: z.number().min(0).max(1).optional(),
       cahaya: z.object({ x: z.number(), y: z.number(), warna: z.string().optional() }).nullable().optional(),
       vinyet: z.boolean().optional(),
+      lampu: z
+        .array(z.object({ x: z.number(), y: z.number(), warna: z.string().optional(), jangkau: z.number().positive().max(2).optional(), kedip: z.boolean().optional() }))
+        .max(6)
+        .nullable()
+        .optional(),
+      gelapLampu: z.number().min(0).max(1).optional(),
+      kilat: z.array(z.number().min(0)).nullable().optional(),
     })
     .nullable()
     .optional(),

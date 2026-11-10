@@ -97,6 +97,7 @@ export const TokohAdeganView: React.FC<{
     pose: st.pose, ekspresi: st.ekspresi, lihat: st.lihat, t, bicara, jalan: fase, siluet: tokoh.siluet,
     ...(st.tubuh ? { tubuh: st.tubuh, jalan: NaN } : {}),
     ...(lapis ? { lapis } : {}),
+    ...(tokoh.tampak === 'belakang' ? { belakang: true } : {}),
   };
   // aksi khusus aktif di detik ini (murni dari t) → override bagian tubuh yang dipegang aksi
   const s = rencana
@@ -113,7 +114,14 @@ export const TokohAdeganView: React.FC<{
   // titik (0,0) viewBox = kaki → posisikan kotak svg
   const kiri = x * width - lebar * (-VIEWBOX.x / VIEWBOX.w);
   const atas = kakiY - tinggi * (-VIEWBOX.y / VIEWBOX.h);
-  const tokohEl = <TokohSvg k={karakter} s={s} hadap={st.hadap} style={{ position: 'absolute', left: kiri, top: atas, width: lebar, height: tinggi }} />;
+  const tokohEl = (
+    <TokohSvg
+      k={karakter}
+      s={s}
+      hadap={st.hadap}
+      style={{ position: 'absolute', left: kiri, top: atas, width: lebar, height: tinggi, ...(tokoh.kabur ? { filter: `blur(${tokoh.kabur}px)` } : {}) }}
+    />
+  );
   // benda open-object (hanya bila dijalankan sebagai aksi khusus): digambar DI BELAKANG tokoh supaya tangan
   // menutupi benda saat menyentuh. Tampil sepanjang adegan: tertutup sebelum aksi, terbuka sesudahnya.
   const benda = lapis === 'lengan-depan' ? [] : rencana?.khusus.filter((r) => r.aksi.jenis === 'open-object') ?? [];
@@ -209,6 +217,123 @@ export const LapisanSuasana: React.FC<{ s: Suasana }> = ({ s }) => {
         </svg>
       ) : null}
       {s.vinyet || s.gelap ? <AbsoluteFill style={{ background: 'radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,0.55) 100%)' }} /> : null}
+      {s.kilat?.length ? <Kilat waktu={s.kilat} t={t} /> : null}
     </AbsoluteFill>
+  );
+};
+
+// ---------------- Phase C: kilat, lampu, efek api/asap ----------------
+
+/** Kekuatan kilat 0..1 pada detik t: kilatan ganda yang cepat memudar. */
+export function kuatKilat(waktu: number[], t: number) {
+  let k = 0;
+  for (const w of waktu) {
+    const d = t - w;
+    if (d < 0 || d > 0.6) continue;
+    const a = Math.exp(-d / 0.07); // kilatan pertama
+    const b = d > 0.14 ? 0.7 * Math.exp(-(d - 0.14) / 0.1) : 0; // kilatan susulan
+    k = Math.max(k, a, b);
+  }
+  return Math.min(1, k);
+}
+const Kilat: React.FC<{ waktu: number[]; t: number }> = ({ waktu, t }) => {
+  const k = kuatKilat(waktu, t);
+  return k > 0.01 ? <AbsoluteFill style={{ background: '#eef3ff', opacity: k * 0.75, pointerEvents: 'none' }} /> : null;
+};
+
+/** Getar nyala api: deterministik dari t, berbeda per sumber (i). */
+export const getarApi = (t: number, i: number) => 1 + Math.sin(t * 13 + i * 1.7) * 0.035 + Math.sin(t * 7.3 + i * 4.1) * 0.025 + Math.sin(t * 23.1 + i) * 0.015;
+
+/**
+ * Gelap di luar cahaya lampu + pendar hangat. Dipasang DI DALAM dunia (ikut kamera), dengan bidang
+ * diperlebar supaya tepi tidak terlihat saat kamera menggeser/zoom. Tanpa mix-blend & tanpa opacity grup.
+ */
+export const LapisanLampu: React.FC<{ lampu: NonNullable<Suasana['lampu']>; gelap?: number }> = ({ lampu, gelap = 0.78 }) => {
+  const frame = useCurrentFrame();
+  const { fps, width, height } = useVideoConfig();
+  const t = frame / fps;
+  const uid = React.useId().replace(/:/g, '');
+  const L = lampu.map((l, i) => {
+    const g = l.kedip === false ? 1 : getarApi(t, i);
+    return { cx: l.x * width, cy: l.y * height, r: (l.jangkau ?? 0.45) * width * g, warna: l.warna ?? '#ffb347' };
+  });
+  return (
+    <svg width={width} height={height} style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none' }}>
+      <defs>
+        <radialGradient id={`lg${uid}`}>
+          <stop offset="0" stopColor="#000" stopOpacity="1" />
+          <stop offset="0.35" stopColor="#000" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+        {L.map((l, i) => (
+          <radialGradient key={i} id={`lw${uid}${i}`}>
+            <stop offset="0" stopColor={l.warna} stopOpacity="0.42" />
+            <stop offset="0.4" stopColor={l.warna} stopOpacity="0.14" />
+            <stop offset="1" stopColor={l.warna} stopOpacity="0" />
+          </radialGradient>
+        ))}
+        <mask id={`lm${uid}`} maskUnits="userSpaceOnUse" x={-width} y={-height} width={width * 3} height={height * 3}>
+          <rect x={-width} y={-height} width={width * 3} height={height * 3} fill="#fff" />
+          {L.map((l, i) => (
+            <circle key={i} cx={l.cx} cy={l.cy} r={l.r} fill={`url(#lg${uid})`} />
+          ))}
+        </mask>
+      </defs>
+      <rect x={-width} y={-height} width={width * 3} height={height * 3} fill="#07060a" fillOpacity={gelap} mask={`url(#lm${uid})`} />
+      {L.map((l, i) => (
+        <circle key={i} cx={l.cx} cy={l.cy} r={l.r * 0.8} fill={`url(#lw${uid}${i})`} />
+      ))}
+    </svg>
+  );
+};
+
+/** Api (nyala berlapis + bara naik) atau asap (gumpalan naik & melebar). Koordinat dunia, ikut kamera. */
+export const EfekView: React.FC<{ e: NonNullable<Adegan['efek']>[number]; i: number }> = ({ e, i }) => {
+  const frame = useCurrentFrame();
+  const { fps, width, height } = useVideoConfig();
+  const t = frame / fps;
+  const S = (e.skala ?? 1) * width * 0.1; // tinggi nyala dasar
+  const cx = e.x * width, cy = e.y * height;
+  if (e.jenis === 'api') {
+    const lidah = (k: number, lebar: number, tinggi: number, fase: number) => {
+      const g = getarApi(t, i * 3 + fase);
+      const goyang = Math.sin(t * 9 + fase * 2 + i) * lebar * 0.18;
+      const h = tinggi * g, w = lebar * (2 - g);
+      return `M ${-w / 2} 0 C ${-w / 2} ${-h * 0.45} ${-w * 0.15 + goyang * 0.5} ${-h * 0.6} ${goyang} ${-h} C ${w * 0.2 + goyang * 0.5} ${-h * 0.6} ${w / 2} ${-h * 0.45} ${w / 2} 0 Q 0 ${w * 0.28 * k} ${-w / 2} 0 Z`;
+    };
+    return (
+      <svg width={width} height={height} style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none' }}>
+        <g transform={`translate(${cx} ${cy})`}>
+          <circle cx={0} cy={-S * 0.4} r={S * 1.4 * getarApi(t, i)} fill="#ffb347" fillOpacity={0.16} />
+          <path d={lidah(1, S * 0.62, S * 1.15, 0)} fill="#e8562a" stroke="#1d1d1f" strokeWidth={Math.max(2, S * 0.035)} strokeLinejoin="round" />
+          <path d={lidah(0.8, S * 0.44, S * 0.85, 1)} fill="#ffa53a" />
+          <path d={lidah(0.6, S * 0.24, S * 0.5, 2)} fill="#fff1b8" />
+          {Array.from({ length: 5 }, (_, j) => {
+            const f = (t * (0.7 + j * 0.13) + j * 0.37 + i * 0.21) % 1;
+            return <circle key={j} cx={Math.sin(t * 3 + j * 2.3) * S * 0.3} cy={-S * (0.9 + f * 1.4)} r={S * 0.035 * (1 - f)} fill="#ffcf6b" fillOpacity={1 - f} />;
+          })}
+        </g>
+      </svg>
+    );
+  }
+  // asap
+  return (
+    <svg width={width} height={height} style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none' }}>
+      <g transform={`translate(${cx} ${cy})`}>
+        {Array.from({ length: 7 }, (_, j) => {
+          const f = (t * 0.22 + j / 7 + i * 0.13) % 1;
+          return (
+            <circle
+              key={j}
+              cx={Math.sin(f * 5 + j) * S * 0.35 + f * S * 0.4}
+              cy={-f * S * 3.2}
+              r={S * (0.25 + f * 0.75)}
+              fill="#8b8f96"
+              fillOpacity={0.38 * Math.sin(Math.PI * f)}
+            />
+          );
+        })}
+      </g>
+    </svg>
   );
 };

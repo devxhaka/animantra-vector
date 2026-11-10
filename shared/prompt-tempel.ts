@@ -42,6 +42,7 @@ export function buatPromptTempel(m: MasukanPrompt): string {
     baris.push(`Sudut cerita: ${m.sudut ?? 'dialog'}.${m.nuansa ? ` Nuansa: ${m.nuansa}.` : ''}`);
     baris.push('Satu adegan = satu baris dialog/narasi. Isi "pembicara" dengan id tokoh atau "narator".');
     baris.push(`Tokoh per adegan: {"id","x","y"?,"hadap","pose","ekspresi","tubuh"?,"lenganDiDepan"?}. pose: ${POSE.join(', ')}. ekspresi: ${EKSPRESI.join(', ')}. tubuh: ${POSISI_TUBUH.join(', ')}. Memeluk anak: yang memeluk berlutut + "lenganDiDepan": true, yang dipeluk "z" lebih besar.`);
+    baris.push('Sinematik (opsional): kamera {"dari":{"zoom","x","y","rotasi"},"ke":{...},"easing":"halus|linear|masuk|keluar","goyang":0..1}; "latarParallax" <1 dan aset "parallax" >1 untuk kesan menyusuri; tokoh "tampak":"belakang" + "kabur" untuk bidikan dari balik bahu; suasana "lampu":[{"x","y","jangkau"}] + "gelapLampu", "kilat":[detik]; adegan "efek":[{"jenis":"api"|"asap","x","y","skala"}]; adegan "kerumunan":[{"jumlah","area":{"x1","x2","y1","y2"},"tinggi":[jauh,dekat],"gerak":"diam|gelisah|jalan|lari|sorak","arah","siluet"?,"z"?}] (maks 200 figur).');
   }
   if (m.misteri) {
     baris.push('');

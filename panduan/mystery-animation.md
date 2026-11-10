@@ -128,6 +128,8 @@ Diukur dengan 10 render terpisah per frame, dibandingkan piksel per piksel:
   ke `fill-opacity`/`stop-opacity` per elemen.
 - **Jangan pakai `<image>` atau `<svg>` bersarang** untuk aset di dalam tokoh: aset SVG kustom dimuat lalu
   disisipkan sebagai vektor di dalam `<g transform>` (`bersihkanSvg` membuang `<script>`/`on*`).
+- **`<svg>` berisi banyak bentuk yang keluar-masuk tepi layar (kerumunan) harus `overflow: hidden`**: dengan
+  `overflow: visible`, figur yang terpotong tepi viewport terukur berubah antar render (Phase D).
 - **Lepas `delayRender` setelah state ter-commit ke DOM** (`useLayoutEffect`), bukan langsung setelah `setState`.
   Kalau tidak, kadang frame dipotret sebelum aset terpasang.
 
