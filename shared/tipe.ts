@@ -165,7 +165,19 @@ export type Adegan = {
   kartu?: { tag?: string; teks: string; nilai?: string } | null;
   kamera?: { dari?: { zoom?: number; x?: number; y?: number }; ke?: { zoom?: number; x?: number; y?: number } } | null;
   sfx?: { file: string; pada: number; volume?: number }[];
-  transisi?: 'potong' | 'fade' | 'geser';
+  /** potong | fade | geser | hitam (masuk dari layar hitam, ±0,4 dtk) */
+  transisi?: 'potong' | 'fade' | 'geser' | 'hitam';
+  // ---- kartu cerita (POV Bayangkan; semua opsional) ----
+  /** Label kecil di kiri atas, misal "SEBELUMNYA…" atau "BEBERAPA TAHUN LALU". */
+  cap?: string | null;
+  /** Kartu waktu: penanda hari/jam + seri-episode di kiri atas. */
+  kartuWaktu?: KartuWaktu | null;
+  /** Kartu judul penutup di tengah bawah. Subtitle adegan ini disembunyikan (suara tetap diputar). */
+  kartuPenutup?: KartuPenutup | null;
+  /** Filter warna untuk dunia adegan (latar, aset, tokoh, suasana). Teks/kartu tidak ikut. */
+  filter?: FilterAdegan | null;
+  /** Detik terakhir adegan memudar ke hitam (termasuk teks), misal 1.2 untuk akhir video. */
+  pudarAkhir?: number | null;
   // ---- format Cerita ----
   /** id pemeran yang bicara di adegan ini, atau "narator". Menentukan suara & gerak mulut. */
   pembicara?: string | null;
@@ -268,6 +280,21 @@ export type AksiOpenObject = AksiDasar & {
 export type AksiTokoh = AksiTurnHead | AksiFlashlightSweep | AksiOpenObject;
 export type JenisAksi = AksiTokoh['jenis'];
 
+export type FilterAdegan = 'kilas-balik' | 'hitam-putih';
+export type KartuWaktu = {
+  label?: string; // baris atas kecil, misal "HARI KETIGA"
+  jam: string; // teks besar, misal "11:51"
+  seri?: string; // baris bawah; kosong = "<seri> - EPISODE <spec.episode>" bila episode diisi
+  muncul?: number; // detik relatif adegan (bawaan 0.3)
+  hilang?: number | null; // detik relatif adegan; kosong = tampil sampai adegan selesai
+};
+export type KartuPenutup = {
+  atas?: string; // kecil di atas judul, misal "BAYANGKAN"
+  judul: string; // besar
+  bawah?: string; // kecil di bawah garis, misal "BERSAMBUNG" atau "TAMAT"
+  muncul?: number; // detik relatif adegan (bawaan 0.2)
+};
+
 export type Suasana = {
   gelap?: number; // 0..1 lapisan malam
   warnaLangit?: string | null; // rona warna, misal "#7a1f1f" untuk langit merah
@@ -283,6 +310,8 @@ export type Spec = {
   format: string;
   judul: string;
   judulSorot?: string; // bagian judul yang diberi kotak sorot
+  /** Nomor episode (seri bersambung). Dipakai kartuWaktu bila `seri` kosong. */
+  episode?: number;
   seri?: string; // menimpa nama seri dari gaya
   fps: number;
   lebar: number;

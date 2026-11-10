@@ -42,6 +42,22 @@ export const PRESET_WARNA: PresetWarna[] = [
       peringatan: '#C85D55', // alert
     },
   },
+  {
+    nama: 'Sinematik',
+    gelap: true,
+    warna: {
+      latar: '#1a1714',
+      lantai: '#0f0d0b',
+      teks: '#f2ede4',
+      merek: '#c8f04a', // lime
+      sorot: '#c8f04a',
+      teksSorot: '#111111',
+      label: '#1c1f24',
+      teksLabel: '#f2ede4',
+      permukaan: '#1c1f24',
+      peringatan: '#e0453a',
+    },
+  },
 ];
 
 /** Tampilan subtitle lama (dipakai bila gaya belum punya pengaturan teks). */
@@ -86,6 +102,10 @@ export const PRESET_TEKS: { nama: string; teks: GayaTeks }[] = [
   {
     nama: 'Mystery Files',
     teks: { ...TEKS_KLASIK, huruf: 'montserrat', ukuran: 56, warna: '#E6D9B8', garis: { warna: '#08131C', tebal: 8 }, bayangan: true, mode: 'karaoke', efek: 'warna', warnaSorot: '#F5B24C', warnaTeksSorot: '#08131C', kataKunci: 'warna', warnaKunci: '#2E7D8C', kataPerBaris: 4, posisi: 0.82, masuk: 'fade' },
+  },
+  {
+    nama: 'Sinematik',
+    teks: { ...TEKS_KLASIK, huruf: 'montserrat', ukuran: 76, kapital: true, warna: '#f4f1ea', garis: { warna: '#111111', tebal: 10 }, bayangan: true, mode: 'karaoke', efek: 'warna', warnaSorot: '#c8f04a', warnaTeksSorot: '#111111', kataKunci: 'warna', warnaKunci: '#c8f04a', kataPerBaris: 2, posisi: 0.6, masuk: 'pop' },
   },
   {
     nama: 'Minimal',
@@ -151,6 +171,19 @@ export function rasioKontras(a: string, b: string) {
 export const teksKontras = (bg: string) => (rasioKontras(bg, '#111111') >= rasioKontras(bg, '#ffffff') ? '#111111' : '#ffffff');
 
 /** Gaya lengkap Mystery Files (di-seed ke data/gaya/mystery-files.json bila belum ada). */
+/** Gaya bawaan untuk format POV Bayangkan: gelap hangat, subtitle besar 2 kata di tengah, sorot lime. */
+export const GAYA_SINEMATIK: Gaya = {
+  id: 'sinematik',
+  nama: 'Sinematik',
+  seri: 'BAYANGKAN',
+  warna: PRESET_WARNA.find((x) => x.nama === 'Sinematik')!.warna,
+  gelap: true,
+  huruf: 'tegas',
+  bentuk: { sudut: 6, label: 'kotak', outline: 0, bayangan: false },
+  teks: PRESET_TEKS.find((x) => x.nama === 'Sinematik')!.teks,
+  logo: null,
+};
+
 export const GAYA_MYSTERY: Gaya = {
   id: 'mystery-files',
   nama: 'Mystery Files',

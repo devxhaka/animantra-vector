@@ -45,6 +45,10 @@ export function buatPromptTempel(m: MasukanPrompt): string {
     baris.push('');
     baris.push('Format ini wajib riset bersumber: sertakan juga satu blok ```md dengan judul "# Riset" dan bagian ## Fakta terverifikasi, ## Hipotesis, ## Legenda, ## Spekulasi, ## Tidak diketahui, ## Sumber (minimal satu tautan). Bedakan fakta, hipotesis, legenda, dan spekulasi; JANGAN pernah menyajikan spekulasi sebagai fakta dan JANGAN mengarang kutipan.');
   }
+  if (m.format.kunci === 'pov-bayangkan') {
+    baris.push('');
+    baris.push('Field khusus format ini (semua opsional, per adegan): "cap" (label kecil kiri atas, misal "SEBELUMNYA…"), "kartuWaktu" {"label":"HARI KETIGA","jam":"11:51","hilang":3.8}, "kartuPenutup" {"atas":"BAYANGKAN","judul":"<judul seri>","bawah":"BERSAMBUNG"} (hanya adegan terakhir), "filter": "kilas-balik" | "hitam-putih", "pudarAkhir": 1.2 (detik memudar ke hitam di akhir), "transisi": "hitam". Di spec: "episode": <nomor>. Jangan pakai "cap" dan "kartuWaktu" di adegan yang sama.');
+  }
   baris.push('');
   baris.push('ATURAN NASKAH:');
   baris.push('- Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook berupa pertanyaan di 3 detik pertama.');

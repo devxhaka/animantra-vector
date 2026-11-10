@@ -59,6 +59,7 @@ function periksaSpecLanjut(spec: any, dir: string, masalah: string[], saran: str
   if (spec.judulSorot && spec.judul && !spec.judul.includes(spec.judulSorot)) masalah.push('judulSorot harus potongan persis dari judul');
   if (!fs.existsSync(path.join(dir, 'caption.txt'))) saran.push('caption.txt belum ditulis');
   if (formatMisteri(spec.format)) masalah.push(...cekRisetMisteri(dir));
+  saran.push(...cekKartuCerita(spec));
   const aksi = cekAksiSpec(spec, (p) => fs.existsSync(path.join(dir, p)));
   masalah.push(...aksi.masalah);
   saran.push(...aksi.peringatan);
@@ -85,6 +86,22 @@ export function cekSpec(dir: string): boolean {
   for (const s of info) console.log('  · ' + s);
   if (ok) console.log('✓ Spec valid');
   return ok;
+}
+
+/** Peringatan waktu kartu cerita & pudar (POV Bayangkan). Tidak menggagalkan cek. */
+export function cekKartuCerita(spec: Partial<Spec>): string[] {
+  const saran: string[] = [];
+  const n = spec.adegan?.length ?? 0;
+  for (const [i, a] of (spec.adegan ?? []).entries()) {
+    const nama = `adegan[${i}] "${a.id}"`;
+    const kw = a.kartuWaktu;
+    if (kw && (kw.muncul ?? 0.3) >= a.durasi) saran.push(`${nama}: kartuWaktu.muncul (${kw.muncul}) melewati durasi adegan (${a.durasi} dtk), kartu tidak akan terlihat`);
+    if (kw?.hilang != null && kw.hilang <= (kw.muncul ?? 0.3)) saran.push(`${nama}: kartuWaktu.hilang harus setelah muncul`);
+    if (a.pudarAkhir && a.pudarAkhir > a.durasi) saran.push(`${nama}: pudarAkhir (${a.pudarAkhir} dtk) lebih lama dari adegan (${a.durasi} dtk)`);
+    if (a.kartuPenutup && i < n - 1) saran.push(`${nama}: kartuPenutup biasanya di adegan terakhir (subtitle adegan ini disembunyikan)`);
+    if (a.kartuWaktu && a.cap) saran.push(`${nama}: cap dan kartuWaktu sama-sama di kiri atas, keduanya akan bertumpuk`);
+  }
+  return saran;
 }
 
 /** Bagian wajib riset.md untuk Mystery Files (lihat panduan/mystery-storytelling.md). */

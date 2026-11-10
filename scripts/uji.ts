@@ -6,12 +6,12 @@ import { skemaSpec } from '../cli/skema';
 import { cekRisetMisteri, periksaSpec } from '../cli/cek';
 import { buatPromptTempel, uraiTempelan } from '../shared/prompt-tempel';
 import { FORMATS, formatBertokoh, formatDari, formatMisteri } from '../shared/formats';
-import { GAYA_BAWAAN, GAYA_MYSTERY, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
+import { GAYA_BAWAAN, GAYA_MYSTERY, GAYA_SINEMATIK, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
 import { AGENT_MORGAN, KARAKTER_CONTOH, PAKAIAN_PILIHAN } from '../shared/karakter-bawaan';
 import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
 import { aksiAktifPada, dedupPeringatan, durasiTransisi, evaluasiAksi, gabungUrutanFallback, rencanakanAksi, type RencanaAksi } from '../remotion/karakter/aksi/resolver';
-import { cekAksiSpec } from '../cli/cek';
+import { cekAksiSpec, cekKartuCerita } from '../cli/cek';
 import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
 import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
 import { bentukBenda, sudutBuka, targetTangan, tepiPanel } from '../remotion/karakter/aksi/benda';
@@ -755,6 +755,51 @@ console.log('Phase 2E: matriks routing (mode × aksi)');
     const h = cekAksiSpec({ ...SPEC_CONTOH, pemeran: [AGENT_MORGAN], adegan: [ad('a1'), ad('a2')] } as unknown as Spec, () => true);
     pastikan(h.masalah.length === 2 && /a1/.test(h.masalah[0]) && /a2/.test(h.masalah[1]), JSON.stringify(h.masalah));
   });
+}
+
+// ======================= POV Bayangkan (Phase A) =======================
+console.log('POV Bayangkan: format, gaya, kartu cerita');
+{
+  const ADEGAN_POV = (o: object = {}) => ({ id: 'a', narasi: 'Kamu *berlari* pulang.', durasi: 4, ...o });
+  const specPov = (adegan: object[]) => ({ ...SPEC_CONTOH, format: 'pov-bayangkan', episode: 2, gaya: GAYA_SINEMATIK, adegan });
+  uji('format pov-bayangkan terdaftar & bertokoh (pipeline Cerita), bukan misteri', () => {
+    const f = formatDari('pov-bayangkan');
+    pastikan(f.kunci === 'pov-bayangkan' && f.seri === 'BAYANGKAN', f.kunci);
+    pastikan(formatBertokoh('pov-bayangkan') && !formatMisteri('pov-bayangkan'), 'bertokoh');
+  });
+  uji('gaya Sinematik: subtitle 2 kata, kapital, sorot lime; kontras teks cukup', () => {
+    const t = GAYA_SINEMATIK.teks!;
+    pastikan(t.kataPerBaris === 2 && t.kapital && t.warnaSorot === '#c8f04a', JSON.stringify(t));
+    pastikan(rasioKontras(GAYA_SINEMATIK.warna.teks, GAYA_SINEMATIK.warna.latar) >= 7, 'kontras');
+  });
+  uji('skema menerima semua field baru (cap, kartuWaktu, kartuPenutup, filter, pudarAkhir, transisi hitam, episode)', () =>
+    valid(specPov([
+      ADEGAN_POV({ id: 'sebelumnya', cap: 'SEBELUMNYA…', filter: 'kilas-balik' }),
+      ADEGAN_POV({ id: 'waktu', transisi: 'hitam', kartuWaktu: { label: 'HARI KETIGA', jam: '11:51', hilang: 3 } }),
+      ADEGAN_POV({ id: 'bw', filter: 'hitam-putih' }),
+      ADEGAN_POV({ id: 'tutup', kartuPenutup: { atas: 'BAYANGKAN', judul: 'Judul Seri', bawah: 'TAMAT' }, pudarAkhir: 1.2 }),
+    ])));
+  uji('skema menolak nilai salah (filter tak dikenal, jam terlalu panjang, episode 0)', () => {
+    pastikan(!skemaSpec.safeParse(specPov([ADEGAN_POV({ filter: 'vintage' })])).success, 'filter');
+    pastikan(!skemaSpec.safeParse(specPov([ADEGAN_POV({ kartuWaktu: { jam: '11:51:00 WIB pagi' } })])).success, 'jam');
+    pastikan(!skemaSpec.safeParse({ ...specPov([ADEGAN_POV()]), episode: 0 }).success, 'episode');
+  });
+  uji('cekKartuCerita: waktu kartu/pudar melewati adegan, penutup bukan di akhir, cap+kartuWaktu bertumpuk', () => {
+    const ok = cekKartuCerita(specPov([ADEGAN_POV({ id: 'x', kartuWaktu: { jam: '1', hilang: 3 } }), ADEGAN_POV({ id: 'y', kartuPenutup: { judul: 'J' }, pudarAkhir: 1 })]) as unknown as Spec);
+    pastikan(!ok.length, ok.join('; '));
+    const s = cekKartuCerita(specPov([
+      ADEGAN_POV({ id: 'p', kartuPenutup: { judul: 'J' }, pudarAkhir: 9, cap: 'X', kartuWaktu: { jam: '1', muncul: 5 } }),
+      ADEGAN_POV({ id: 'q', kartuWaktu: { jam: '1', muncul: 2, hilang: 1 } }),
+    ]) as unknown as Spec);
+    for (const pola of [/muncul.*melewati/, /hilang harus setelah/, /pudarAkhir/, /kartuPenutup biasanya/, /bertumpuk/])
+      pastikan(s.some((x) => pola.test(x)), 'kurang: ' + pola);
+  });
+  uji('prompt Mode Tempel memuat field kartu cerita hanya untuk pov-bayangkan', () => {
+    const dasar = { topik: 't', durasiTarget: 60, gaya: GAYA_SINEMATIK, suara: 'edge:id-ID-GadisNeural', musik: 'otomatis' };
+    pastikan(buatPromptTempel({ ...dasar, format: formatDari('pov-bayangkan') }).includes('"kartuPenutup"'), 'pov harus memuat');
+    pastikan(!buatPromptTempel({ ...dasar, format: FORMATS[0] }).includes('"kartuPenutup"'), 'format lain tidak');
+  });
+  uji('spec lama tanpa field baru: tidak ada saran kartu cerita', () => pastikan(!cekKartuCerita(SPEC_CONTOH as unknown as Spec).length, 'harus kosong'));
 }
 
 console.log(`\n${lulus} lulus, ${gagal.length} gagal`);

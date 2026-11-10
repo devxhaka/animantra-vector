@@ -26,6 +26,14 @@ export const FORMATS: FormatDef[] = [
       'Kisah misteri sinematik dibawakan pemeran (biasanya Agent Morgan) + narator. 5 babak: HOOK (pertanyaan/kejanggalan, ≤5 dtk) → SETUP (tempat, waktu, tokoh asli) → INVESTIGATION (bukti satu per satu) → REVELATION (apa yang diketahui vs belum) → CLOSING (pertanyaan terbuka + ajakan). Bedakan fakta terverifikasi, hipotesis, legenda, spekulasi, dan yang tidak diketahui; jangan pernah menyajikan spekulasi sebagai fakta. Wajib riset.md bersumber. Baca panduan/mystery-files.md.',
   },
   {
+    kunci: 'pov-bayangkan',
+    nama: 'POV Bayangkan',
+    deskripsi: 'Kisah orang kedua berseri',
+    seri: 'BAYANGKAN',
+    panduan:
+      'Kisah sinematik orang kedua: PENONTON adalah tokoh utama ("kamu/kalian", "adikmu"), narator berbicara langsung kepadanya; pemeran dari pesanan menjadi tokoh yang menemani penonton. Berseri: bila ada "lanjutan", buka dengan adegan recap 1-2 kalimat ber-cap "SEBELUMNYA…" (+ filter kilas-balik), lalu adegan pertama episode ini memakai kartuWaktu (label hari, jam, seri - episode). Alur: situasi mencekam → kejadian demi kejadian dengan emosi naik-turun (close-up dengan kamera zoom saat emosional) → kilas balik pakai filter "kilas-balik" → momen hening/doa → penutup kartuPenutup (atas "BAYANGKAN", judul seri, bawah "BERSAMBUNG"/"TAMAT") + pudarAkhir. Kalimat pendek, indrawi, 60-120 dtk. Topik agama/sejarah: hanya dari sumber sahih (catat di riset.md), sampaikan sebagai gambaran/ilustrasi, dan sosok yang tidak boleh/tidak perlu digambar jelas pakai siluet. Lihat panduan/pov-bayangkan.md.',
+  },
+  {
     kunci: 'tur-lingkungan',
     nama: 'Tur Lingkungan',
     deskripsi: 'Beberapa benda, satu tempat',
@@ -110,7 +118,7 @@ export const FORMATS: FormatDef[] = [
 export const formatDari = (kunci: string) => FORMATS.find((f) => f.kunci === kunci) ?? FORMATS[0];
 
 /** Format yang memakai pemeran/tokoh (pipeline Cerita): isian pemeran, suara per tokoh, dst. */
-export const FORMAT_BERTOKOH = ['cerita', 'mystery-story'];
+export const FORMAT_BERTOKOH = ['cerita', 'mystery-story', 'pov-bayangkan'];
 export const formatBertokoh = (kunci: string | undefined) => !!kunci && FORMAT_BERTOKOH.includes(kunci);
 export const formatMisteri = (kunci: string | undefined) => kunci === 'mystery-story';
 

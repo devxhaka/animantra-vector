@@ -95,8 +95,9 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
   const g = guncangan(adegan.suasana, t);
   const pembicara = adegan.pembicara && adegan.pembicara !== 'narator' ? cariKarakter(spec.pemeran, adegan.pembicara) : null;
 
-  return (
-    <AbsoluteFill style={{ opacity: opasitas, transform: `translateX(${geser}px)` }}>
+  const filterCss = FILTER_ADEGAN[adegan.filter ?? ''] ?? null;
+  const dunia = (
+    <>
       {adegan.latar ? null : <Latar />}
       <AbsoluteFill
         style={{
@@ -119,16 +120,148 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
         ))}
       </AbsoluteFill>
       {adegan.suasana ? <LapisanSuasana s={adegan.suasana} /> : null}
+    </>
+  );
+
+  return (
+    <AbsoluteFill style={{ opacity: opasitas, transform: `translateX(${geser}px)` }}>
+      {/* tanpa filter: struktur DOM sama persis seperti sebelumnya (regresi piksel) */}
+      {filterCss ? <AbsoluteFill style={{ filter: filterCss }}>{dunia}</AbsoluteFill> : dunia}
+      {adegan.filter === 'kilas-balik' ? <TepiKilasBalik /> : null}
       {adegan.tampilJudul ? <Judul spec={spec} terang={!!adegan.latar} /> : null}
       {adegan.teksBesar ? <TeksBesar teks={adegan.teksBesar} /> : null}
       {adegan.kartu ? <Kartu {...adegan.kartu} atas={!!adegan.tokoh?.length} /> : null}
-      <Subtitle narasi={adegan.narasi} kata={adegan.kata} nama={pembicara?.nama} warnaNama={pembicara?.warna.atasan} />
+      {adegan.cap ? <Cap teks={adegan.cap} /> : null}
+      {adegan.kartuWaktu ? <KartuWaktuView k={adegan.kartuWaktu} spec={spec} /> : null}
+      {adegan.kartuPenutup ? (
+        <KartuPenutupView k={adegan.kartuPenutup} />
+      ) : (
+        <Subtitle narasi={adegan.narasi} kata={adegan.kata} nama={pembicara?.nama} warnaNama={pembicara?.warna.atasan} />
+      )}
+      {transisi === 'hitam' ? <LayarHitam dari={[0, Math.round(fps * 0.4)]} ke={[1, 0]} /> : null}
+      {adegan.pudarAkhir ? (
+        <LayarHitam dari={[durationInFrames - Math.max(1, Math.round(adegan.pudarAkhir * fps)), durationInFrames - 1]} ke={[0, 1]} />
+      ) : null}
       {adegan.suara ? <Html5Audio src={berkas(adegan.suara)} /> : null}
       {(adegan.sfx ?? []).map((s, i) => (
         <Sequence key={i} from={Math.round(s.pada * fps)} layout="none">
           <Html5Audio src={berkas(s.file)} volume={s.volume ?? 0.6} />
         </Sequence>
       ))}
+    </AbsoluteFill>
+  );
+};
+
+// ---------------- Kartu cerita & efek layar (POV Bayangkan) ----------------
+
+/** Filter warna dunia adegan. Teks, kartu, dan subtitle tidak ikut. */
+const FILTER_ADEGAN: Record<string, string> = {
+  'kilas-balik': 'sepia(0.55) saturate(0.6) contrast(0.9) brightness(1.06)',
+  'hitam-putih': 'grayscale(1) contrast(1.08)',
+};
+
+/** Tepi terang lembut ala kenangan, di atas dunia kilas balik. */
+const TepiKilasBalik: React.FC = () => (
+  <AbsoluteFill style={{ pointerEvents: 'none', background: 'radial-gradient(ellipse 75% 62% at 50% 46%, rgba(246,236,214,0) 55%, rgba(246,236,214,0.55) 100%)' }} />
+);
+
+/** Lapisan hitam penuh; opasitas diinterpolasi dari frame (deterministik). */
+const LayarHitam: React.FC<{ dari: [number, number]; ke: [number, number] }> = ({ dari, ke }) => {
+  const frame = useCurrentFrame();
+  const o = dari[1] > dari[0] ? interpolate(frame, dari, ke, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : frame >= dari[0] ? ke[1] : ke[0];
+  return o > 0 ? <AbsoluteFill style={{ background: '#000', opacity: o, pointerEvents: 'none' }} /> : null;
+};
+
+const masukHalus = (frame: number, fps: number, mulai: number) =>
+  interpolate(frame, [mulai * fps, (mulai + 0.45) * fps], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+
+/** Label kecil kiri atas, misal "SEBELUMNYA…". */
+const Cap: React.FC<{ teks: string }> = ({ teks }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const m = masukHalus(frame, fps, 0.15);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 60,
+        top: 170,
+        opacity: m,
+        transform: `translateX(${(1 - m) * -30}px)`,
+        background: 'rgba(18,20,24,0.82)',
+        color: '#e9e6df',
+        fontFamily: hurufMono(),
+        fontSize: 30,
+        letterSpacing: 3,
+        padding: '10px 20px',
+        borderRadius: 6,
+        textTransform: 'uppercase',
+      }}
+    >
+      {teks}
+    </div>
+  );
+};
+
+/** Kartu waktu kiri atas: titik merah + label, jam besar, seri-episode. */
+const KartuWaktuView: React.FC<{ k: NonNullable<Adegan['kartuWaktu']>; spec: Spec }> = ({ k, spec }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const g = useGaya();
+  const mulai = k.muncul ?? 0.3;
+  const masuk = spring({ frame: frame - Math.round(mulai * fps), fps, config: { damping: 16 } });
+  const keluar = k.hilang != null ? interpolate(frame, [k.hilang * fps, (k.hilang + 0.35) * fps], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
+  const o = Math.min(masuk, keluar);
+  if (o <= 0) return null;
+  const merah = g.warna.peringatan ?? '#e0453a';
+  const seriBawaan = spec.episode ? `${spec.seri || g.seri || formatDari(spec.format).seri} - EPISODE ${spec.episode}` : '';
+  const seri = k.seri ?? seriBawaan;
+  const kedip = 0.55 + 0.45 * Math.cos((frame / fps) * Math.PI * 2 * 0.8);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 60,
+        top: 160,
+        opacity: o,
+        transform: `translateX(${(1 - masuk) * -60}px)`,
+        background: 'rgba(24,27,32,0.9)',
+        borderLeft: `8px solid ${merah}`,
+        borderRadius: 10,
+        padding: '18px 30px 20px 26px',
+        color: '#f2f2f2',
+        fontFamily: hurufMono(),
+        minWidth: 420,
+      }}
+    >
+      {k.label ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 24, letterSpacing: 3, color: merah, textTransform: 'uppercase' }}>
+          <span style={{ width: 14, height: 14, borderRadius: 7, background: merah, opacity: kedip }} />
+          {k.label}
+        </div>
+      ) : null}
+      <div style={{ fontSize: 88, lineHeight: 1.05, letterSpacing: 2 }}>{k.jam}</div>
+      {seri ? <div style={{ fontSize: 24, letterSpacing: 2, color: '#b9bec7', textTransform: 'uppercase' }}>{seri}</div> : null}
+    </div>
+  );
+};
+
+/** Kartu judul penutup: pita gelap bawah + teks bertingkat di tengah. */
+const KartuPenutupView: React.FC<{ k: NonNullable<Adegan['kartuPenutup']> }> = ({ k }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const g = useGaya();
+  const m = masukHalus(frame, fps, k.muncul ?? 0.2);
+  const judul = hurufTeks('bebas', g.huruf);
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none', opacity: m }}>
+      <AbsoluteFill style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(0,0,0,0.78) 58%, rgba(0,0,0,0.88) 100%)' }} />
+      <div style={{ position: 'absolute', left: 60, right: 60, top: '60%', textAlign: 'center', color: '#f4f1ea', transform: `translateY(${(1 - m) * 24}px)` }}>
+        {k.atas ? <div style={{ fontFamily: hurufMono(), fontSize: 30, letterSpacing: 6, color: g.warna.sorot, textTransform: 'uppercase' }}>{k.atas}</div> : null}
+        <div style={{ fontFamily: judul.keluarga, fontWeight: judul.berat, fontSize: 132, lineHeight: 1.02, letterSpacing: 2, textTransform: 'uppercase', marginTop: 6 }}>{k.judul}</div>
+        <div style={{ width: 260, height: 3, background: '#f4f1ea', opacity: 0.6, margin: '22px auto 18px' }} />
+        {k.bawah ? <div style={{ fontFamily: hurufMono(), fontSize: 26, letterSpacing: 10, color: '#c9c4ba', textTransform: 'uppercase' }}>{k.bawah}</div> : null}
+      </div>
     </AbsoluteFill>
   );
 };

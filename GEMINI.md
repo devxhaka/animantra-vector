@@ -64,6 +64,13 @@ Pipeline sama dengan Cerita. **Baca `panduan/mystery-files.md` dan
 Sumber; `cek` menolak tanpa itu. Jangan menyajikan spekulasi sebagai fakta dan
 jangan mengarang kutipan. Agent Morgan: `panduan/mystery-character.md`.
 
+### Format POV Bayangkan (`pov-bayangkan`)
+Pipeline sama dengan Cerita. **Baca `panduan/pov-bayangkan.md` dulu.** Narasi
+orang kedua (penonton = tokoh utama), berseri. Field khusus adegan: `cap`,
+`kartuWaktu`, `kartuPenutup`, `filter`, `pudarAkhir`, `transisi: "hitam"`, plus
+`episode` di spec. Topik agama/sejarah: hanya dari sumber sahih (catat di
+`riset.md`).
+
 ### Naskah
 - Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook pertanyaan di 3 detik pertama.
 - ±2,5 kata per detik bicara. Satu adegan = satu ide, 6–16 kata, durasi 2,5–7 detik.

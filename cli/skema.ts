@@ -66,7 +66,24 @@ export const skemaAdegan = z.object({
     .nullable()
     .optional(),
   sfx: z.array(z.object({ file: z.string(), pada: z.number().min(0), volume: z.number().optional() })).optional(),
-  transisi: z.enum(['potong', 'fade', 'geser']).optional(),
+  transisi: z.enum(['potong', 'fade', 'geser', 'hitam']).optional(),
+  cap: z.string().max(32, 'cap maksimal 32 karakter').nullable().optional(),
+  kartuWaktu: z
+    .object({
+      label: z.string().max(24).optional(),
+      jam: z.string().min(1).max(12, 'jam maksimal 12 karakter'),
+      seri: z.string().max(40).optional(),
+      muncul: z.number().min(0).optional(),
+      hilang: z.number().min(0).nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  kartuPenutup: z
+    .object({ atas: z.string().max(24).optional(), judul: z.string().min(1).max(40), bawah: z.string().max(24).optional(), muncul: z.number().min(0).optional() })
+    .nullable()
+    .optional(),
+  filter: z.enum(['kilas-balik', 'hitam-putih']).nullable().optional(),
+  pudarAkhir: z.number().min(0).nullable().optional(),
   pembicara: z.string().nullable().optional(),
   latar: z.string().nullable().optional(),
   suasana: z
@@ -90,6 +107,7 @@ export const skemaSpec = z.object({
   format: z.string(),
   judul: z.string().min(3).max(60),
   judulSorot: z.string().optional(),
+  episode: z.number().int().positive().optional(),
   seri: z.string().optional(),
   fps: z.number().int(),
   lebar: z.number().int(),
