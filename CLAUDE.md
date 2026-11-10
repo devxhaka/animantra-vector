@@ -58,7 +58,8 @@ Agent Morgan: `panduan/mystery-character.md`.
 ### Format POV Bayangkan (`pov-bayangkan`)
 Pipeline sama dengan Cerita. **Baca `panduan/pov-bayangkan.md` dulu.** Narasi orang kedua (penonton = tokoh utama),
 berseri. Field khusus adegan: `cap`, `kartuWaktu`, `kartuPenutup`, `filter`, `pudarAkhir`, `transisi: "hitam"`,
-plus `episode` di spec. Topik agama/sejarah: hanya dari sumber sahih (catat di `riset.md`).
+`pilihan` (seri interaktif), `kartuKabar`, `namaPembicara`, plus `episode` di spec. Bila `lanjutan.pilihanPenonton`
+ada, buka episode dengan menjalankan pilihan itu. Topik agama/sejarah: hanya dari sumber sahih (catat di `riset.md`).
 
 ### Naskah
 - Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook pertanyaan di 3 detik pertama.

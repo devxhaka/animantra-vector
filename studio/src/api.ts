@@ -13,7 +13,7 @@ export type Opsi = {
   azureSiap: boolean;
   edgeSiap: boolean;
 };
-export type DetailVideo = { meta: VideoMeta; caption: string; cuplikan: string[]; pesanan: any };
+export type DetailVideo = { meta: VideoMeta; caption: string; cuplikan: string[]; pesanan: any; pilihan?: string[] | null };
 
 async function minta<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const r = await fetch(url, {

@@ -94,6 +94,21 @@ export const skemaAdegan = z.object({
   filter: z.enum(['kilas-balik', 'hitam-putih']).nullable().optional(),
   pudarAkhir: z.number().min(0).nullable().optional(),
   latarParallax: z.number().min(0).max(3).optional(),
+  pilihan: z
+    .object({
+      judul: z.string().max(28).optional(),
+      opsi: z.array(z.string().min(1).max(32, 'opsi pilihan maksimal 32 karakter')).min(2, 'pilihan minimal 2 opsi').max(3, 'pilihan maksimal 3 opsi'),
+      ajakan: z.string().max(32).optional(),
+      lanjut: z.string().max(28).nullable().optional(),
+      muncul: z.number().min(0).optional(),
+    })
+    .nullable()
+    .optional(),
+  kartuKabar: z
+    .object({ label: z.string().max(24).optional(), teks: z.string().min(1).max(80), muncul: z.number().min(0).optional(), hilang: z.number().min(0).nullable().optional() })
+    .nullable()
+    .optional(),
+  namaPembicara: z.string().max(18).nullable().optional(),
   kerumunan: z
     .array(
       z.object({

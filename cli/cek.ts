@@ -103,6 +103,15 @@ export function cekKartuCerita(spec: Partial<Spec>): string[] {
     if (a.pudarAkhir && a.pudarAkhir > a.durasi) saran.push(`${nama}: pudarAkhir (${a.pudarAkhir} dtk) lebih lama dari adegan (${a.durasi} dtk)`);
     if (a.kartuPenutup && i < n - 1) saran.push(`${nama}: kartuPenutup biasanya di adegan terakhir (subtitle adegan ini disembunyikan)`);
     if (a.kartuWaktu && a.cap) saran.push(`${nama}: cap dan kartuWaktu sama-sama di kiri atas, keduanya akan bertumpuk`);
+    if (a.pilihan) {
+      if (i < n - 1) saran.push(`${nama}: pilihan penonton biasanya di adegan terakhir`);
+      if (a.kartuPenutup) saran.push(`${nama}: pilihan dan kartuPenutup bertumpuk; pakai salah satu`);
+      if (a.kartuWaktu || a.kartuKabar) saran.push(`${nama}: kartuWaktu/kartuKabar menumpuk dengan judul "APA PILIHANMU?" di atas`);
+      const perlu = (a.pilihan.muncul ?? 0.3) + 0.35 + a.pilihan.opsi.length * 0.6 + 2;
+      if (a.durasi < perlu) saran.push(`${nama}: adegan pilihan terlalu singkat (${a.durasi} dtk); beri ±${perlu.toFixed(1)} dtk agar semua opsi terbaca`);
+      if (a.pilihan.lanjut === undefined && !spec.episode) saran.push(`${nama}: isi spec.episode agar badge "LANJUT EPISODE n" muncul otomatis`);
+    }
+    if (a.kartuKabar && (a.kartuWaktu || a.cap)) saran.push(`${nama}: kartuKabar di tengah atas; cek tidak bertumpuk dengan kartu kiri atas`);
   }
   return saran;
 }

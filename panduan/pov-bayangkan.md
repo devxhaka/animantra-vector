@@ -37,8 +37,27 @@ sampaikan sebagai **gambaran**, dan sosok yang tidak boleh/tidak perlu digambar 
 
 ## Gaya
 Gaya bawaan **"Sinematik"** (di-seed sekali, penanda `data/gaya/.seed-sinematik`): latar gelap hangat,
-subtitle Montserrat kapital 2 kata di tengah layar (posisi 0,6), kata aktif & kata kunci lime.
+subtitle Montserrat kapital 2 kata di bawah tokoh (posisi 0,84; bisa diubah di tab Gaya Saya → Posisi), kata aktif & kata kunci lime.
 Tetap pakai gaya yang dipilih pengguna di pesanan.
+
+## Seri interaktif: pilihan penonton (Phase E)
+Pola: tiap episode (kecuali terakhir) ditutup dilema → penonton memilih di komentar → episode berikutnya
+menjalankan pilihan terbanyak.
+- **Akhir episode:** adegan terakhir (±6–8 dtk) memakai `pilihan`. Narasi membacakan pertanyaannya:
+  "Apa yang akan kamu lakukan? Menerima makanan dari temanmu, atau menolaknya?"
+  ```json
+  "pilihan": { "opsi": ["TERIMA MAKANAN", "TOLAK MAKANAN"] }
+  ```
+  Bawaan: judul "APA PILIHANMU?", ajakan "KOMENTAR DI BAWAH", badge "LANJUT EPISODE n+1" (dari `spec.episode`)
+  yang muncul setelah narasi selesai dan menggantikan subtitle. `lanjut: null` = tanpa badge. Maks 3 opsi, ≤32 karakter.
+  Opsi = dilema yang sama-sama masuk akal (bukan jelas benar/salah), berkaitan dengan pelajaran bersumber.
+  Jangan pakai `kartuPenutup` di adegan yang sama.
+- **Awal episode berikutnya:** `pesanan.lanjutan` berisi `episode`, `opsi`, dan `pilihanPenonton` (diisi pengguna
+  dari komentar). Adegan 1–2 menjalankan pilihan itu ("Kamu memilih berbagi airnya…"), lalu konsekuensi + penilaian
+  jujur ("Pilihanmu tepat, karena…" / "Ternyata…") beserta dalilnya. Tanpa `pilihanPenonton` → recap biasa.
+- **Kartu kabar:** `kartuKabar: { "label": "KABAR WARGA", "teks": "Dajjal telah sampai di kota ini." }` (tengah atas).
+- **Tokoh figuran bicara:** `namaPembicara: "TEMAN"` → label kecil di atas subtitle; tulis ucapannya dengan tanda kutip.
+- Pergantian lokasi/waktu di tengah episode: `kartuWaktu` baru (mis. label "PASAR DEKAT RUMAH") atau `cap`.
 
 ## Pose & emosi (Phase B)
 `tubuh`: `duduk-bersila` / `berlutut` / `berbaring`; pose `memeluk` / `merangkul` / `menyeka-mata`;

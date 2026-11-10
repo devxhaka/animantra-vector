@@ -15,6 +15,7 @@ import { cekAksiSpec, cekKartuCerita } from '../cli/cek';
 import { getarApi, keadaanAkhir, kuatKilat } from '../remotion/cerita';
 import { goyangKamera, transformParallax } from '../remotion/kamera';
 import { acak, susunKerumunan } from '../remotion/kerumunan';
+import { teksLanjut, waktuLanjut } from '../shared/seri';
 import { EKSPRESI, POSE, POSISI_TUBUH } from '../shared/tipe';
 import { bersihkanSvg } from '../remotion/karakter/aksi/asetSvg';
 import { PUTAR_MAKS, periksaJangkauan, selisihSapu, sudutArahLayar, targetPutar, terapkanAksi, type KonteksTerapkan } from '../remotion/karakter/aksi/terapkan';
@@ -962,6 +963,39 @@ console.log('Phase D: kerumunan');
     valid(sp({ ...dasar, tinggi: [0.05, 0.2], gerak: 'lari', arah: 'kiri', siluet: true, benih: 4, z: 6, kabur: 3, palet: ['#112233'] }));
     for (const salah of [{ ...dasar, area: { x1: 0.9, x2: 0.1, y1: 0.6, y2: 0.9 } }, { ...dasar, jumlah: 0 }, { ...dasar, gerak: 'terbang' }])
       pastikan(!skemaSpec.safeParse(sp(salah)).success, 'harus ditolak: ' + JSON.stringify(salah));
+  });
+}
+
+// ======================= Phase E: seri interaktif =======================
+console.log('Phase E: seri interaktif (pilihan penonton)');
+{
+  const P = { opsi: ['BERBAGI AIRNYA', 'SIMPAN UNTUK KALIAN'] };
+  uji('badge lanjut: otomatis dari episode, bisa diganti, null = tanpa badge', () => {
+    pastikan(teksLanjut(P, { episode: 1 }) === 'LANJUT EPISODE 2', 'otomatis');
+    pastikan(teksLanjut(P, {}) === null, 'tanpa episode → tanpa badge');
+    pastikan(teksLanjut({ ...P, lanjut: 'BERSAMBUNG' }, { episode: 3 }) === 'BERSAMBUNG', 'eksplisit');
+    pastikan(teksLanjut({ ...P, lanjut: null }, { episode: 3 }) === null, 'null');
+  });
+  uji('badge muncul setelah kata terakhir diucapkan, tidak sebelum opsi terbaca, tidak melewati adegan', () => {
+    const kata = [{ t: 'a', a: 0.2, b: 1 }, { t: 'b', a: 1, b: 3.4 }];
+    pastikan(Math.abs(waktuLanjut({ durasi: 7, kata, pilihan: P }) - 3.65) < 1e-9, 'setelah narasi');
+    pastikan(waktuLanjut({ durasi: 7, kata: [{ t: 'a', a: 0, b: 0.3 }], pilihan: P }) >= 1.9 - 1e-9, 'minimal setelah opsi');
+    pastikan(waktuLanjut({ durasi: 4, kata: [{ t: 'a', a: 0, b: 3.9 }], pilihan: P }) <= 3.4 + 1e-9, 'tidak melewati adegan');
+  });
+  uji('skema: pilihan 2–3 opsi ≤32 karakter, kartuKabar, namaPembicara', () => {
+    const sp = (a: object) => ({ ...SPEC_CONTOH, episode: 1, adegan: [{ id: 'a', narasi: 'x', durasi: 7, ...a }] });
+    valid(sp({ pilihan: { ...P, judul: 'APA PILIHANMU?', ajakan: 'KOMENTAR DI BAWAH', lanjut: null }, kartuKabar: { label: 'KABAR WARGA', teks: 'Dajjal telah sampai di kota ini.' }, namaPembicara: 'TEMAN' }));
+    for (const salah of [{ pilihan: { opsi: ['SATU'] } }, { pilihan: { opsi: ['A', 'B', 'C', 'D'] } }, { pilihan: { opsi: ['A', 'X'.repeat(40)] } }])
+      pastikan(!skemaSpec.safeParse(sp(salah)).success, 'harus ditolak: ' + JSON.stringify(salah));
+  });
+  uji('cek: pilihan bukan di akhir / bersama kartuPenutup / terlalu singkat / tanpa episode → saran', () => {
+    const s = cekKartuCerita({ ...SPEC_CONTOH, adegan: [
+      { id: 'p', narasi: 'x', durasi: 2, pilihan: P, kartuPenutup: { judul: 'J' } },
+      { id: 'q', narasi: 'y', durasi: 7 },
+    ] } as unknown as Spec);
+    for (const pola of [/biasanya di adegan terakhir/, /bertumpuk; pakai salah satu/, /terlalu singkat/, /isi spec.episode/]) pastikan(s.some((x) => pola.test(x)), 'kurang: ' + pola);
+    const ok = cekKartuCerita({ ...SPEC_CONTOH, episode: 2, adegan: [{ id: 'a', narasi: 'x', durasi: 7, pilihan: P }] } as unknown as Spec);
+    pastikan(!ok.length, ok.join('; '));
   });
 }
 

@@ -87,6 +87,8 @@ export type FormBaru = {
   sudut?: 'pov' | 'dialog' | 'narator';
   nuansa?: string;
   lanjutan?: string | null; // slug video sebelumnya (episode lanjutan)
+  /** Seri interaktif: opsi yang dipilih penonton di akhir episode sebelumnya (dari komentar). */
+  pilihanPenonton?: string | null;
 };
 
 export type Job = {
@@ -229,6 +231,12 @@ export type Adegan = {
   filter?: FilterAdegan | null;
   /** Detik terakhir adegan memudar ke hitam (termasuk teks), misal 1.2 untuk akhir video. */
   pudarAkhir?: number | null;
+  /** Seri interaktif: layar "APA PILIHANMU?" + opsi + ajakan komentar + badge "LANJUT EPISODE N". */
+  pilihan?: PilihanPenonton | null;
+  /** Kartu kabar/pesan di tengah atas, misal { label: "KABAR WARGA", teks: "Dajjal telah sampai di kota ini." }. */
+  kartuKabar?: { label?: string; teks: string; muncul?: number; hilang?: number | null } | null;
+  /** Label pembicara kecil di atas subtitle untuk tokoh figuran (bukan pemeran), misal "TEMAN", "TETANGGA". */
+  namaPembicara?: string | null;
   // ---- format Cerita ----
   /** id pemeran yang bicara di adegan ini, atau "narator". Menentukan suara & gerak mulut. */
   pembicara?: string | null;
@@ -342,6 +350,14 @@ export type AksiOpenObject = AksiDasar & {
 export type AksiTokoh = AksiTurnHead | AksiFlashlightSweep | AksiOpenObject;
 export type JenisAksi = AksiTokoh['jenis'];
 
+export type PilihanPenonton = {
+  judul?: string; // bawaan "APA PILIHANMU?"
+  opsi: string[]; // 2–3 pilihan singkat (maks 32 karakter), muncul bergantian
+  ajakan?: string; // bawaan "KOMENTAR DI BAWAH"
+  /** badge setelah narasi selesai; kosong = "LANJUT EPISODE <episode+1>" bila spec.episode diisi; null = tanpa badge */
+  lanjut?: string | null;
+  muncul?: number; // detik relatif adegan (bawaan 0.3)
+};
 export type FilterAdegan = 'kilas-balik' | 'hitam-putih';
 export type KartuWaktu = {
   label?: string; // baris atas kecil, misal "HARI KETIGA"

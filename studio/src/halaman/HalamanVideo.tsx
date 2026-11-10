@@ -95,7 +95,19 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
     sudut: 'dialog',
     nuansa: '',
     lanjutan: '',
+    pilihanPenonton: '',
   });
+  // seri interaktif: opsi "APA PILIHANMU?" di akhir episode yang dilanjutkan
+  const [opsiLalu, setOpsiLalu] = React.useState<string[] | null>(null);
+  React.useEffect(() => {
+    setOpsiLalu(null);
+    if (!form.lanjutan) return;
+    let batal = false;
+    api.video(form.lanjutan).then((d) => !batal && setOpsiLalu(d.pilihan ?? null)).catch(() => undefined);
+    return () => {
+      batal = true;
+    };
+  }, [form.lanjutan]);
   const [karakter, setKarakter] = React.useState<Karakter[]>([]);
   const [episode, setEpisode] = React.useState<VideoMeta[]>([]);
   const cerita = formatBertokoh(form.format);
@@ -143,7 +155,7 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
     if (cerita && !form.pemeran.length) return setGalat('Pilih minimal satu pemeran.');
     setKirim('kirim');
     try {
-      await api.buat({ ...form, lanjutan: form.lanjutan || null });
+      await api.buat({ ...form, lanjutan: form.lanjutan || null, pilihanPenonton: (form.lanjutan && form.pilihanPenonton.trim()) || null });
       setForm((f) => ({ ...f, topik: '' }));
       setKirim('ok');
       onDibuat();
@@ -218,7 +230,7 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
             <option value="petualangan">Petualangan</option>
           </select>
           <label className="label">Episode</label>
-          <select className="isian" value={form.lanjutan} onChange={(e) => atur('lanjutan', e.target.value)}>
+          <select className="isian" value={form.lanjutan} onChange={(e) => (atur('lanjutan', e.target.value), atur('pilihanPenonton', ''))}>
             <option value="">Cerita baru</option>
             {episode.map((v) => (
               <option key={v.slug} value={v.slug}>
@@ -226,6 +238,26 @@ function FormBaru({ terhubung, onDibuat }: { terhubung: boolean; onDibuat: () =>
               </option>
             ))}
           </select>
+          {form.lanjutan ? (
+            <>
+              <label className="label">Pilihan penonton (dari komentar)</label>
+              {opsiLalu?.length ? (
+                <div className="pilih-opsi">
+                  {opsiLalu.map((o) => (
+                    <button key={o} type="button" className={'tombol kecil' + (form.pilihanPenonton === o ? ' aktif' : '')} onClick={() => atur('pilihanPenonton', form.pilihanPenonton === o ? '' : o)}>
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <input
+                className="isian"
+                placeholder={opsiLalu?.length ? 'atau tulis pilihan lain…' : 'Kosongkan bila episode lalu tanpa pilihan'}
+                value={form.pilihanPenonton}
+                onChange={(e) => atur('pilihanPenonton', e.target.value)}
+              />
+            </>
+          ) : null}
         </>
       ) : null}
 

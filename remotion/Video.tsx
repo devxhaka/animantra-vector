@@ -16,6 +16,7 @@ import { huruf, hurufMono, hurufTeks } from './huruf';
 import { BerkasCtx, useBerkas } from './berkas';
 import { goyangKamera, transformParallax } from './kamera';
 import { KerumunanView } from './kerumunan';
+import { teksLanjut, waktuLanjut } from '../shared/seri';
 import { formatDari } from '../shared/formats';
 import { TEKS_KLASIK, teksKontras } from '../shared/gaya-bawaan';
 import { EfekView, LapisanLampu, LapisanSuasana, TokohAdeganView, cariKarakter, guncangan, keadaanAkhir, type KeadaanAkhir } from './cerita';
@@ -160,10 +161,17 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
       {adegan.kartu ? <Kartu {...adegan.kartu} atas={!!adegan.tokoh?.length} /> : null}
       {adegan.cap ? <Cap teks={adegan.cap} /> : null}
       {adegan.kartuWaktu ? <KartuWaktuView k={adegan.kartuWaktu} spec={spec} /> : null}
+      {adegan.kartuKabar ? <KartuKabarView k={adegan.kartuKabar} /> : null}
+      {adegan.pilihan ? <PilihanView p={adegan.pilihan} adegan={adegan} spec={spec} /> : null}
       {adegan.kartuPenutup ? (
         <KartuPenutupView k={adegan.kartuPenutup} />
-      ) : (
-        <Subtitle narasi={adegan.narasi} kata={adegan.kata} nama={pembicara?.nama} warnaNama={pembicara?.warna.atasan} />
+      ) : adegan.pilihan && t >= waktuLanjut(adegan) && teksLanjut(adegan.pilihan, spec) ? null : (
+        <Subtitle
+          narasi={adegan.narasi}
+          kata={adegan.kata}
+          nama={pembicara?.nama ?? adegan.namaPembicara ?? undefined}
+          warnaNama={pembicara ? pembicara.warna.atasan : adegan.namaPembicara ? '#e8a33a' : undefined}
+        />
       )}
       {transisi === 'hitam' ? <LayarHitam dari={[0, Math.round(fps * 0.4)]} ke={[1, 0]} /> : null}
       {adegan.pudarAkhir ? (
@@ -277,6 +285,95 @@ const KartuWaktuView: React.FC<{ k: NonNullable<Adegan['kartuWaktu']>; spec: Spe
       ) : null}
       <div style={{ fontSize: 88, lineHeight: 1.05, letterSpacing: 2 }}>{k.jam}</div>
       {seri ? <div style={{ fontSize: 24, letterSpacing: 2, color: '#b9bec7', textTransform: 'uppercase' }}>{seri}</div> : null}
+    </div>
+  );
+};
+
+// ---------------- Seri interaktif (Phase E) ----------------
+
+const WARNA_OPSI = ['#e0453a', '#4cb3d4', '#e8a33a'];
+
+/** Layar pilihan: latar diredupkan, judul, opsi bergantian (pil bergaris), ajakan komentar + panah, lalu badge LANJUT. */
+const PilihanView: React.FC<{ p: NonNullable<Adegan['pilihan']>; adegan: Adegan; spec: Spec }> = ({ p, adegan, spec }) => {
+  const frame = useCurrentFrame();
+  const { fps, height } = useVideoConfig();
+  const g = useGaya();
+  const t = frame / fps;
+  const mulai = p.muncul ?? 0.3;
+  const redup = interpolate(t, [mulai - 0.2, mulai + 0.4], [0, 0.5], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const judul = hurufTeks('bebas', g.huruf);
+  const masuk = (k: number) => spring({ frame: frame - Math.round((mulai + k) * fps), fps, config: { damping: 14 } });
+  const lanjut = teksLanjut(p, spec);
+  const tL = waktuLanjut(adegan);
+  const sL = spring({ frame: frame - Math.round(tL * fps), fps, config: { damping: 11, stiffness: 160 } });
+  const T = g.teks ?? TEKS_KLASIK;
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      <AbsoluteFill style={{ background: '#05060a', opacity: redup }} />
+      <div style={{ position: 'absolute', top: 150, left: 50, right: 50, textAlign: 'center' }}>
+        <div style={{ fontFamily: judul.keluarga, fontWeight: judul.berat, fontSize: 112, color: '#f4f1ea', letterSpacing: 2, opacity: masuk(0), transform: `translateY(${(1 - masuk(0)) * -24}px)`, textShadow: '0 4px 0 rgba(0,0,0,0.35)' }}>
+          {p.judul ?? 'APA PILIHANMU?'}
+        </div>
+        {p.opsi.map((o, i) => {
+          const m = masuk(0.35 + i * 0.6);
+          const w = WARNA_OPSI[i % WARNA_OPSI.length];
+          return (
+            <div key={i} style={{ marginTop: i ? 22 : 30, opacity: m, transform: `scale(${0.85 + 0.15 * m})` }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontFamily: judul.keluarga,
+                  fontWeight: judul.berat,
+                  fontSize: 58,
+                  letterSpacing: 1.5,
+                  color: '#f4f1ea',
+                  background: 'rgba(20,22,28,0.82)',
+                  border: `4px solid ${w}`,
+                  boxShadow: `0 0 18px ${w}66`,
+                  borderRadius: 999,
+                  padding: '8px 40px 6px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {o}
+              </span>
+            </div>
+          );
+        })}
+        <div style={{ marginTop: 26, opacity: masuk(0.35 + p.opsi.length * 0.6), fontFamily: hurufMono(), fontSize: 24, letterSpacing: 4, color: '#c9ccd3', textTransform: 'uppercase' }}>
+          {p.ajakan ?? 'KOMENTAR DI BAWAH'}
+          <div style={{ fontSize: 30, lineHeight: 1, transform: `translateY(${Math.abs(Math.sin(t * 4)) * 8}px)` }}>⌄</div>
+        </div>
+      </div>
+      {lanjut && t >= tL ? (
+        <div style={{ position: 'absolute', left: 0, right: 0, top: T.posisi * height, transform: `translateY(-50%) scale(${sL})`, textAlign: 'center' }}>
+          <span style={{ display: 'inline-block', background: '#d8312a', color: '#fff', fontFamily: judul.keluarga, fontWeight: judul.berat, fontSize: 70, letterSpacing: 2, padding: '6px 30px 2px', borderRadius: 10, boxShadow: '0 6px 0 rgba(0,0,0,0.3)', textTransform: 'uppercase' }}>
+            {lanjut}
+          </span>
+        </div>
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
+/** Kartu kabar/pesan di tengah atas: label kecil + teks, masuk halus & bisa hilang. */
+const KartuKabarView: React.FC<{ k: NonNullable<Adegan['kartuKabar']> }> = ({ k }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const g = useGaya();
+  const f = huruf(g.huruf);
+  const m = masukHalus(frame, fps, k.muncul ?? 0.3);
+  const keluar = k.hilang != null ? interpolate(frame, [k.hilang * fps, (k.hilang + 0.35) * fps], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) : 1;
+  const o = Math.min(m, keluar);
+  if (o <= 0) return null;
+  return (
+    <div style={{ position: 'absolute', top: 230, left: 90, right: 90, textAlign: 'center', opacity: o, transform: `translateY(${(1 - m) * -20}px)` }}>
+      <div style={{ display: 'inline-block', background: 'rgba(14,15,19,0.88)', borderRadius: 18, padding: '22px 40px 26px', border: '2px solid rgba(255,255,255,0.12)' }}>
+        {k.label ? (
+          <div style={{ fontFamily: hurufMono(), fontSize: 24, letterSpacing: 4, color: g.warna.peringatan ?? '#e0453a', textTransform: 'uppercase', marginBottom: 8 }}>• {k.label}</div>
+        ) : null}
+        <div style={{ fontFamily: f.badan, fontWeight: 800, fontSize: 50, lineHeight: 1.18, color: '#f4f1ea' }}>{k.teks}</div>
+      </div>
     </div>
   );
 };

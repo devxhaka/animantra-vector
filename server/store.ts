@@ -48,6 +48,12 @@ export function daftarGaya(): Gaya[] {
     .filter((g): g is Gaya => !!g?.id)
     .sort((a, b) => (a.id === 'bawaan' ? -1 : b.id === 'bawaan' ? 1 : a.nama.localeCompare(b.nama)));
 }
+/** Opsi "APA PILIHANMU?" di akhir sebuah video (seri interaktif), atau null. */
+export function opsiPilihan(slug: string): string[] | null {
+  const sp = bacaJson<Spec | null>(path.join(dirVideo(slug), 'spec.json'), null);
+  return [...(sp?.adegan ?? [])].reverse().find((a) => a.pilihan?.opsi?.length)?.pilihan?.opsi ?? null;
+}
+
 export const ambilGaya = (id: string) => daftarGaya().find((g) => g.id === id) ?? null;
 export function gayaAktifId(): string {
   const id = bacaJson<{ gayaAktif?: string }>(filePengaturan, {}).gayaAktif;
@@ -205,7 +211,17 @@ export function siapkanFolder(j: Job) {
   let lanjutan: unknown = null;
   if (j.form.lanjutan) {
     const sp = bacaJson<Spec | null>(path.join(dirVideo(j.form.lanjutan), 'spec.json'), null);
-    if (sp) lanjutan = { slug: j.form.lanjutan, judul: sp.judul, folder: `videos/${j.form.lanjutan}`, naskah: sp.adegan.map((a) => `${a.pembicara ?? 'narasi'}: ${a.narasi}`) };
+    if (sp)
+      lanjutan = {
+        slug: j.form.lanjutan,
+        judul: sp.judul,
+        folder: `videos/${j.form.lanjutan}`,
+        naskah: sp.adegan.map((a) => `${a.pembicara ?? 'narasi'}: ${a.narasi}`),
+        // seri interaktif: nomor episode lalu, opsi di akhir episode lalu, dan pilihan penonton (dari komentar)
+        episode: sp.episode ?? null,
+        opsi: [...sp.adegan].reverse().find((a) => a.pilihan?.opsi?.length)?.pilihan?.opsi ?? null,
+        pilihanPenonton: j.form.pilihanPenonton ?? null,
+      };
   }
   const latarPustaka = fs.existsSync(path.join(DIR.perpustakaan, 'latar')) ? fs.readdirSync(path.join(DIR.perpustakaan, 'latar')).filter((f) => f.endsWith('.svg')).map((f) => `perpustakaan/latar/${f}`) : [];
   const pesanan = {

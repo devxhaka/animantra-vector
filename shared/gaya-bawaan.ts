@@ -105,7 +105,7 @@ export const PRESET_TEKS: { nama: string; teks: GayaTeks }[] = [
   },
   {
     nama: 'Sinematik',
-    teks: { ...TEKS_KLASIK, huruf: 'montserrat', ukuran: 76, kapital: true, warna: '#f4f1ea', garis: { warna: '#111111', tebal: 10 }, bayangan: true, mode: 'karaoke', efek: 'warna', warnaSorot: '#c8f04a', warnaTeksSorot: '#111111', kataKunci: 'warna', warnaKunci: '#c8f04a', kataPerBaris: 2, posisi: 0.6, masuk: 'pop' },
+    teks: { ...TEKS_KLASIK, huruf: 'montserrat', ukuran: 76, kapital: true, warna: '#f4f1ea', garis: { warna: '#111111', tebal: 10 }, bayangan: true, mode: 'karaoke', efek: 'warna', warnaSorot: '#c8f04a', warnaTeksSorot: '#111111', kataKunci: 'warna', warnaKunci: '#c8f04a', kataPerBaris: 2, posisi: 0.84, masuk: 'pop' },
   },
   {
     nama: 'Minimal',

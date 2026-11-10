@@ -116,7 +116,7 @@ app.get('/api/videos/:slug', (req, res) => {
   const caption = fs.existsSync(path.join(d, 'caption.txt')) ? fs.readFileSync(path.join(d, 'caption.txt'), 'utf8') : '';
   const cuplikan = fs.existsSync(path.join(d, 'cuplikan')) ? fs.readdirSync(path.join(d, 'cuplikan')).filter((f) => f.endsWith('.jpg')).sort() : [];
   const pesanan = S.metaVideo(m.slug) ? safeJson(path.join(d, 'pesanan.json')) : null;
-  res.json({ meta: m, caption, cuplikan, pesanan });
+  res.json({ meta: m, caption, cuplikan, pesanan, pilihan: S.opsiPilihan(m.slug) });
 });
 const safeJson = (f: string) => {
   try {
@@ -155,7 +155,9 @@ app.post('/api/videos/:slug/revisi', (req, res) => {
     suara: p?.suara ?? 'gemini:Kore',
     musik: p?.musik ?? 'otomatis',
     gayaId: p?.gaya?.id ?? S.gayaAktifId(),
-    ...(p?.pemeran ? { pemeran: p.pemeran.map((x: { id: string }) => x.id), sudut: p.sudut, nuansa: p.nuansa, lanjutan: p.lanjutan?.slug ?? null } : {}),
+    ...(p?.pemeran
+      ? { pemeran: p.pemeran.map((x: { id: string }) => x.id), sudut: p.sudut, nuansa: p.nuansa, lanjutan: p.lanjutan?.slug ?? null, pilihanPenonton: p.lanjutan?.pilihanPenonton ?? null }
+      : {}),
   };
   const j = S.buatJob('revisi', form, { slug: m.slug, judul: m.judul, revisi: teks });
   bangunkan();
@@ -218,6 +220,7 @@ app.post('/api/jobs', (req, res) => {
           sudut: ['pov', 'dialog', 'narator'].includes(b.sudut) ? b.sudut : 'dialog',
           nuansa: String(b.nuansa ?? ''),
           lanjutan: b.lanjutan ? String(b.lanjutan) : null,
+          pilihanPenonton: b.lanjutan && b.pilihanPenonton ? String(b.pilihanPenonton).trim().slice(0, 80) || null : null,
         }
       : {}),
   };

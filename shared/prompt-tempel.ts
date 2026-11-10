@@ -50,7 +50,7 @@ export function buatPromptTempel(m: MasukanPrompt): string {
   }
   if (m.format.kunci === 'pov-bayangkan') {
     baris.push('');
-    baris.push('Field khusus format ini (semua opsional, per adegan): "cap" (label kecil kiri atas, misal "SEBELUMNYA…"), "kartuWaktu" {"label":"HARI KETIGA","jam":"11:51","hilang":3.8}, "kartuPenutup" {"atas":"BAYANGKAN","judul":"<judul seri>","bawah":"BERSAMBUNG"} (hanya adegan terakhir), "filter": "kilas-balik" | "hitam-putih", "pudarAkhir": 1.2 (detik memudar ke hitam di akhir), "transisi": "hitam". Di spec: "episode": <nomor>. Jangan pakai "cap" dan "kartuWaktu" di adegan yang sama.');
+    baris.push('Field khusus format ini (semua opsional, per adegan): "cap" (label kecil kiri atas, misal "SEBELUMNYA…"), "kartuWaktu" {"label":"HARI KETIGA","jam":"11:51","hilang":3.8}, "kartuPenutup" {"atas":"BAYANGKAN","judul":"<judul seri>","bawah":"BERSAMBUNG"} (hanya adegan terakhir), "filter": "kilas-balik" | "hitam-putih", "pudarAkhir": 1.2 (detik memudar ke hitam di akhir), "transisi": "hitam". Di spec: "episode": <nomor>. Jangan pakai "cap" dan "kartuWaktu" di adegan yang sama. Seri interaktif: adegan terakhir boleh "pilihan": {"opsi": ["OPSI A", "OPSI B"]} (narasi membacakan pertanyaannya), "kartuKabar": {"label","teks"}, "namaPembicara": "TEMAN" untuk tokoh figuran.');
   }
   baris.push('');
   baris.push('ATURAN NASKAH:');

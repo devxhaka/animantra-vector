@@ -206,3 +206,7 @@ input[type='range'] { width: 100%; accent-color: var(--biru); }
 .segmen-pilih.penuh button { flex: 1; }
 .pratinjau-teks { margin-top: 18px; max-width: 736px; }
 .bingkai.teks { background: #ddd; }
+
+/* seri interaktif: pilihan penonton dari episode sebelumnya */
+.pilih-opsi { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.pilih-opsi .tombol.aktif { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
