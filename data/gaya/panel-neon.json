@@ -1,0 +1,59 @@
+{
+  "id": "panel-neon",
+  "nama": "Panel Neon",
+  "seri": "",
+  "warna": {
+    "latar": "#0c2a66",
+    "lantai": "#061640",
+    "teks": "#ffffff",
+    "merek": "#19c2c9",
+    "sorot": "#d7f52f",
+    "teksSorot": "#0b1a3a",
+    "label": "#0f2f6e",
+    "teksLabel": "#ffffff"
+  },
+  "gelap": true,
+  "huruf": "bulat",
+  "bentuk": {
+    "sudut": 26,
+    "label": "pil",
+    "outline": 0,
+    "bayangan": false
+  },
+  "latar": {
+    "jenis": "sorot",
+    "pola": "tidak"
+  },
+  "tata": {
+    "judul": "pil",
+    "label": "garis",
+    "panggung": "bingkai",
+    "kaca": true
+  },
+  "teks": {
+    "huruf": "baloo",
+    "ukuran": 60,
+    "kapital": false,
+    "warna": "#ffffff",
+    "garis": {
+      "warna": "#04102b",
+      "tebal": 0
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.76,
+    "kataPerBaris": 3,
+    "mode": "karaoke",
+    "efek": "warna",
+    "warnaSorot": "#d7f52f",
+    "warnaTeksSorot": "#111111",
+    "kataKunci": "warna",
+    "warnaKunci": "#d7f52f",
+    "masuk": "pop"
+  },
+  "logo": null
+}

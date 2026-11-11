@@ -25,8 +25,32 @@ const label = z.object({
   teks: z.string().max(28, 'label maksimal 28 karakter'),
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
-  arah: z.enum(['kiri', 'kanan']).optional(),
+  arah: z.enum(['kiri', 'kanan', 'atas', 'bawah']).optional(),
   muncul: z.number().optional(),
+  saat: z.string().optional(),
+});
+const waktu = { muncul: z.number().min(0).optional(), saat: z.string().optional() };
+const butir = z.object({ ...waktu, teks: z.string().max(34, 'butir maksimal 34 karakter'), ket: z.string().max(60).optional(), ikon: z.string().optional(), coret: z.boolean().optional() });
+const dasarPanel = { ...waktu, y: z.number().min(0).max(1).optional() };
+const sisi = z.object({ ...waktu, tag: z.string().max(18), teks: z.string().max(90) });
+const panel = z.discriminatedUnion('jenis', [
+  z.object({ ...dasarPanel, jenis: z.literal('angka'), tag: z.string().max(36).optional(), dari: z.number().optional(), ke: z.number(), awalan: z.string().max(4).optional(), akhiran: z.string().max(10).optional(), ket: z.string().max(40).optional() }),
+  z.object({ ...dasarPanel, jenis: z.literal('daftar'), butir: z.array(butir).min(1).max(5), nomor: z.boolean().optional(), panah: z.boolean().optional(), jeda: z.number().optional() }),
+  z.object({ ...dasarPanel, jenis: z.literal('petak'), butir: z.array(butir).min(2).max(6), kolom: z.number().int().min(2).max(3).optional(), jeda: z.number().optional() }),
+  z.object({ ...dasarPanel, jenis: z.literal('hitung'), tag: z.string().max(36).optional(), jumlah: z.number().int().min(2).max(31), terisi: z.number().int().min(0).optional(), kolom: z.number().int().min(2).max(7).optional(), ket: z.string().max(60).optional() }),
+  z.object({ ...dasarPanel, jenis: z.literal('banding'), baik: sisi, buruk: sisi }),
+  z.object({ ...dasarPanel, jenis: z.literal('tanya'), tag: z.string().max(36).optional(), teks: z.string().max(70), pilihan: z.array(z.string().max(16)).max(3).optional() }),
+  z.object({ ...dasarPanel, jenis: z.literal('catatan'), teks: z.string().max(60) }),
+  z.object({ ...dasarPanel, jenis: z.literal('terminal'), judul: z.string().max(32).optional(), baris: z.array(z.union([z.string().max(64), butir])).min(1).max(8), jeda: z.number().optional() }),
+]);
+const stiker = z.object({
+  ...waktu,
+  teks: z.string().max(24, 'stiker maksimal 24 karakter'),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  ukuran: z.number().positive().optional(),
+  bentuk: z.enum(['ledakan', 'stempel']).optional(),
+  warna: z.enum(['sorot', 'merah', 'hijau']).optional(),
 });
 const pose = z.enum(POSE as unknown as [string, ...string[]]);
 const ekspresi = z.enum(EKSPRESI as unknown as [string, ...string[]]);
@@ -62,6 +86,10 @@ export const skemaAdegan = z.object({
   suara: z.string().nullable().optional(),
   tampilJudul: z.boolean().optional(),
   teksBesar: z.string().max(18).nullable().optional(),
+  judul: z.object({ tag: z.string().max(40).optional(), teks: z.string().min(2).max(48, 'judul adegan maksimal 48 karakter'), sorot: z.string().optional(), nomor: z.number().int().min(1).max(99).optional() }).nullable().optional(),
+  panel: z.array(panel).max(3, 'maksimal 3 panel per adegan').optional(),
+  panelY: z.number().min(0).max(1).optional(),
+  stiker: z.array(stiker).max(2).optional(),
   aset: z.array(aset).optional(),
   label: z.array(label).max(5).optional(),
   kartu: z.object({ tag: z.string().optional(), teks: z.string().max(30), nilai: z.string().optional() }).nullable().optional(),

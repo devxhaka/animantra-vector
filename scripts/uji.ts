@@ -3,10 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { skemaSpec } from '../cli/skema';
-import { cekRisetMisteri, periksaSpec } from '../cli/cek';
+import { cekRisetMisteri, periksaSpec, periksaSpecData } from '../cli/cek';
 import { buatPromptTempel, uraiTempelan } from '../shared/prompt-tempel';
 import { FORMATS, formatBertokoh, formatDari, formatMisteri } from '../shared/formats';
-import { GAYA_BAWAAN, GAYA_MYSTERY, GAYA_SINEMATIK, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
+import { GAYA_BAWAAN, GAYA_MYSTERY, GAYA_PRESET_BARU, GAYA_SINEMATIK, PRESET_TAMPILAN, PRESET_TEKS, PRESET_WARNA, rasioKontras } from '../shared/gaya-bawaan';
+import { buatKapan } from '../remotion/konteks';
 import { AGENT_MORGAN, KARAKTER_CONTOH, PAKAIAN_PILIHAN } from '../shared/karakter-bawaan';
 import { SPEC_CONTOH } from '../shared/contoh-spec';
 import { ID_AKSI, REGISTRI_AKSI, lihatDariArah } from '../shared/aksi';
@@ -996,6 +997,73 @@ console.log('Phase E: seri interaktif (pilihan penonton)');
     for (const pola of [/biasanya di adegan terakhir/, /bertumpuk; pakai salah satu/, /terlalu singkat/, /isi spec.episode/]) pastikan(s.some((x) => pola.test(x)), 'kurang: ' + pola);
     const ok = cekKartuCerita({ ...SPEC_CONTOH, episode: 2, adegan: [{ id: 'a', narasi: 'x', durasi: 7, pilihan: P }] } as unknown as Spec);
     pastikan(!ok.length, ok.join('; '));
+  });
+}
+
+// ======================= Phase F: tampilan baru & 5 gaya video =======================
+console.log('Phase F: tampilan baru (panel, stiker, saat, terminal, kertas-kisi)');
+{
+  uji('5 preset tampilan siap pakai & format boleh-nggak + kinetik terdaftar', () => {
+    for (const id of ['skema-hardware', 'panel-neon', 'presenter-neon', 'ui-pastel', 'kertas-kisi'])
+      pastikan(GAYA_PRESET_BARU.some((g) => g.id === id), 'kurang preset ' + id);
+    pastikan(PRESET_TAMPILAN.length === 5, 'jumlah preset tampilan');
+    pastikan(formatDari('boleh-nggak').kunci === 'boleh-nggak' && formatDari('kinetik').kunci === 'kinetik', 'format baru');
+  });
+  uji('buatKapan mencocokkan kata dari narasi (saat) dengan waktu kata TTS', () => {
+    const k = buatKapan({
+      id: 'a',
+      narasi: 'Chip GPU memproses *jutaan* data',
+      durasi: 4,
+      kata: [
+        { t: 'Chip', a: 0.1, b: 0.4 },
+        { t: 'GPU', a: 0.4, b: 0.8 },
+        { t: 'memproses', a: 0.8, b: 1.4 },
+        { t: 'jutaan', a: 1.48, b: 2.0 },
+        { t: 'data', a: 2.0, b: 2.5 },
+      ],
+    });
+    pastikan(Math.abs(k({ saat: 'jutaan' }, 0.5) - 1.4) < 1e-9, 'harus 80ms sebelum kata jutaan (1.48 - 0.08 = 1.4)');
+    pastikan(Math.abs(k({ muncul: 0.9 }, 0.5) - 0.9) < 1e-9, 'fallback ke muncul');
+    pastikan(Math.abs(k({ saat: 'tidakada' }, 0.7) - 0.7) < 1e-9, 'kata tidak ada → bawaan');
+  });
+  uji('skema menerima semua 8 jenis panel (termasuk terminal), stiker stempel, dan judul.nomor', () => {
+    const sp = {
+      ...SPEC_CONTOH,
+      gaya: GAYA_PRESET_BARU.find((g) => g.id === 'kertas-kisi')!,
+      adegan: [
+        {
+          id: 'langkah-1',
+          narasi: 'Siapkan lingkungan *uji* dan jalankan konsol keamanan',
+          durasi: 5,
+          judul: { tag: 'Pengujian resmi', teks: 'Siapkan Lingkungan Uji', sorot: 'Lingkungan Uji', nomor: 1 },
+          panelY: 0.32,
+          panel: [
+            { jenis: 'terminal', judul: 'msfconsole', baris: ['$ use auxiliary/scanner/whatsapp', { teks: '[+] *Celah* ditemukan', saat: 'konsol' }] },
+            { jenis: 'daftar', panah: true, butir: [{ teks: 'Ditemukan', coret: true }, { teks: 'Diuji' }, { teks: 'Diperbaiki' }] },
+            { jenis: 'banding', baik: { tag: 'BOLEH', teks: 'Di sistem uji sendiri' }, buruk: { tag: 'TIDAK BOLEH', teks: 'Tanpa izin pemilik' } },
+          ],
+          stiker: [
+            { teks: 'KERENTANAN DITEMUKAN', x: 0.5, y: 0.45, bentuk: 'stempel', warna: 'merah', saat: 'uji' },
+            { teks: '3 KIPAS!', x: 0.8, y: 0.3, bentuk: 'ledakan', warna: 'sorot' },
+          ],
+        },
+        {
+          id: 'langkah-2',
+          narasi: 'Jatah cuti *dua belas* hari kerja per tahun',
+          durasi: 5,
+          judul: { teks: 'Hak Cuti 12 Hari', sorot: '12 Hari', nomor: 2 },
+          panel: [
+            { jenis: 'hitung', tag: 'Cuti Tahunan', jumlah: 12, terisi: 12, kolom: 4, ket: 'Pasal 79 UU Ketenagakerjaan' },
+            { jenis: 'angka', tag: 'Beban GPU', dari: 100, ke: 999, akhiran: ' JUTA+' },
+            { jenis: 'tanya', tag: 'Komentar', teks: 'Pernah ngalamin?', pilihan: ['PERNAH!', 'BELUM'] },
+          ],
+        },
+      ],
+    };
+    valid(sp);
+    const cek = periksaSpecData(sp, process.cwd());
+    pastikan(cek.ok, 'masalah: ' + cek.masalah.join('; '));
+    pastikan(!cek.saran.some((s) => s.includes('saat "')), 'saran saat tak dikenal: ' + cek.saran.join('; '));
   });
 }
 

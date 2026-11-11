@@ -1,0 +1,59 @@
+{
+  "id": "presenter-neon",
+  "nama": "Presenter Neon",
+  "seri": "",
+  "warna": {
+    "latar": "#0a1f4d",
+    "lantai": "#040d26",
+    "teks": "#ffffff",
+    "merek": "#17b8c4",
+    "sorot": "#c8f02c",
+    "teksSorot": "#0b1a3a",
+    "label": "#0d2a5c",
+    "teksLabel": "#ffffff"
+  },
+  "gelap": true,
+  "huruf": "bulat",
+  "bentuk": {
+    "sudut": 20,
+    "label": "pil",
+    "outline": 0,
+    "bayangan": false
+  },
+  "latar": {
+    "jenis": "sorot",
+    "pola": "lantai-kisi"
+  },
+  "tata": {
+    "judul": "pil",
+    "label": "garis",
+    "panggung": "penuh",
+    "kaca": true
+  },
+  "teks": {
+    "huruf": "baloo",
+    "ukuran": 60,
+    "kapital": false,
+    "warna": "#ffffff",
+    "garis": {
+      "warna": "#04102b",
+      "tebal": 0
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.76,
+    "kataPerBaris": 3,
+    "mode": "karaoke",
+    "efek": "warna",
+    "warnaSorot": "#c8f02c",
+    "warnaTeksSorot": "#111111",
+    "kataKunci": "warna",
+    "warnaKunci": "#c8f02c",
+    "masuk": "pop"
+  },
+  "logo": null
+}

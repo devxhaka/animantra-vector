@@ -13,6 +13,7 @@ export type Opsi = {
   azureSiap: boolean;
   edgeSiap: boolean;
 };
+export type PemakaianGemini = { model: string; dipakai: number; batas: number; sisa: number; habis: boolean; pulih: string; terakhir: string | null };
 export type DetailVideo = { meta: VideoMeta; caption: string; cuplikan: string[]; pesanan: any; pilihan?: string[] | null };
 
 async function minta<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
@@ -30,6 +31,7 @@ async function minta<T>(url: string, init?: RequestInit & { json?: unknown }): P
 export const api = {
   status: () => minta<Status>('/api/status'),
   opsi: () => minta<Opsi>('/api/opsi'),
+  pemakaianGemini: () => minta<PemakaianGemini | null>('/api/gemini/pemakaian'),
   videos: () => minta<VideoMeta[]>('/api/videos'),
   video: (slug: string) => minta<DetailVideo>(`/api/videos/${slug}`),
   jobs: () => minta<Job[]>('/api/jobs'),

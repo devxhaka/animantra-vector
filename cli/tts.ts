@@ -5,6 +5,7 @@ import { lapor } from './api';
 import { azureSiap, ttsAzure } from '../server/azure';
 import { edgeSiap, ttsEdge } from '../server/edge';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, infoSuaraEleven, modelEleven, sisaKreditEleven, ttsEleven } from '../server/elevenlabs';
+import { catatPermintaanGemini, modelGeminiTts, tandaiGeminiHabis } from '../server/gemini';
 
 const JEDA = 0.35; // detik napas di akhir tiap adegan
 
@@ -40,30 +41,144 @@ function wav(pcm: Buffer, rate: number) {
   h.writeUInt32LE(pcm.length, 40);
   return Buffer.concat([h, pcm]);
 }
-export async function ttsGemini(teks: string, suara: string) {
-  const model = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+const GAYA_GEMINI = 'Bacakan dalam bahasa Indonesia dengan gaya kreator edukasi yang antusias, jelas, dan tidak terburu-buru';
+
+/** Satu permintaan ke Gemini TTS → PCM16 mono. Setiap permintaan yang diterima dicatat ke pemakaian harian. */
+export async function mintaGemini(prompt: string, suara: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelGeminiTts()}:generateContent`;
   const body = {
-    contents: [{ parts: [{ text: `Bacakan dalam bahasa Indonesia dengan gaya kreator edukasi yang antusias, jelas, dan tidak terburu-buru: ${teks}` }] }],
+    contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: suara } } } },
   };
   for (let coba = 0; coba < 4; coba++) {
     const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY! }, body: JSON.stringify(body) });
     const t = await r.text();
-    if (r.status === 429 && /quota|exhausted|per day/i.test(t)) throw new Error('Kuota harian Gemini TTS habis');
+    // 429 harian → berhenti & tandai habis. 429 per menit → tunggu sesuai saran Google lalu coba lagi.
+    if (r.status === 429 && /per ?day|PerDay|daily/i.test(t)) {
+      tandaiGeminiHabis();
+      throw new Error('Kuota harian Gemini TTS habis');
+    }
     if (r.status === 429 || r.status >= 500) {
-      await new Promise((s) => setTimeout(s, 2000 * 2 ** coba));
+      const saran = Number(t.match(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/)?.[1] ?? 0);
+      if (coba === 3 && r.status === 429) throw new Error('Kuota Gemini TTS habis (batas per menit terus tercapai)');
+      await new Promise((s) => setTimeout(s, Math.min(65_000, Math.max(saran * 1000 + 500, 2000 * 2 ** coba))));
       continue;
     }
     const j: any = JSON.parse(t || '{}');
     if (!r.ok) throw new Error(`Gemini TTS ${r.status}: ${j?.error?.message ?? t.slice(0, 200)}`);
+    catatPermintaanGemini();
     const part = j?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data);
     if (!part) throw new Error('Gemini TTS tidak mengembalikan audio');
     const rate = Number(String(part.inlineData.mimeType).match(/rate=(\d+)/)?.[1] ?? 24000);
-    const pcm = Buffer.from(part.inlineData.data, 'base64');
-    return { data: wav(pcm, rate), ext: 'wav', durasi: pcm.length / 2 / rate };
+    return { pcm: Buffer.from(part.inlineData.data, 'base64'), rate };
   }
   throw new Error('Gemini TTS: terlalu banyak percobaan');
+}
+
+export async function ttsGemini(teks: string, suara: string) {
+  const { pcm, rate } = await mintaGemini(`${GAYA_GEMINI}: ${teks}`, suara);
+  return { data: wav(pcm, rate), ext: 'wav', durasi: pcm.length / 2 / rate };
+}
+
+// ---- Gemini gabungan: satu permintaan untuk banyak baris, lalu dipotong di jeda hening ----
+// Kuota gratis Gemini TTS dihitung per PERMINTAAN, jadi 1 permintaan per video jauh lebih hemat
+// daripada 1 permintaan per adegan.
+const MAKS_BARIS_GABUNG = 12;
+const MAKS_HURUF_GABUNG = 1800;
+
+/** Rentang hening (detik) di PCM16 mono, dari yang paling awal. */
+export function cariHening(pcm: Buffer, rate: number, minimal = 0.24) {
+  const per = Math.max(1, Math.round(rate * 0.01)); // jendela 10 ms
+  const n = Math.floor(pcm.length / 2);
+  const rms: number[] = [];
+  for (let i = 0; i < n; i += per) {
+    let s = 0;
+    const akhir = Math.min(n, i + per);
+    for (let j = i; j < akhir; j++) {
+      const v = pcm.readInt16LE(j * 2) / 32768;
+      s += v * v;
+    }
+    rms.push(Math.sqrt(s / Math.max(1, akhir - i)));
+  }
+  const urut = [...rms].sort((x, y) => x - y);
+  const ambang = Math.max(0.006, (urut[Math.floor(urut.length * 0.9)] || 0.1) * 0.07);
+  const hasil: { a: number; b: number }[] = [];
+  let mulai = -1;
+  for (let i = 0; i <= rms.length; i++) {
+    const sunyi = i < rms.length && rms[i] < ambang;
+    if (sunyi && mulai < 0) mulai = i;
+    if (!sunyi && mulai >= 0) {
+      if ((i - mulai) * 0.01 >= minimal || mulai === 0 || i === rms.length) hasil.push({ a: mulai * 0.01, b: i * 0.01 });
+      mulai = -1;
+    }
+  }
+  return { hening: hasil, total: n / rate };
+}
+
+/**
+ * Tentukan potongan [a, b] (detik) untuk tiap baris dari satu rekaman gabungan.
+ * `panjang` = jumlah huruf tiap baris; dipakai untuk memperkirakan letak batas, lalu dipilih jeda hening
+ * terpanjang di dekat perkiraan itu. Mengembalikan null bila batasnya tidak meyakinkan.
+ */
+export function potongPerBaris(pcm: Buffer, rate: number, panjang: number[]): { a: number; b: number }[] | null {
+  const { hening, total } = cariHening(pcm, rate);
+  const s0 = hening.length && hening[0].a < 0.02 ? hening[0].b : 0;
+  const s1 = hening.length && hening[hening.length - 1].b > total - 0.02 ? hening[hening.length - 1].a : total;
+  const tengah = hening.filter((h) => h.a > s0 + 0.3 && h.b < s1 - 0.3);
+  const N = panjang.length;
+  if (tengah.length < N - 1) return null;
+  const potong: { a: number; b: number }[] = [];
+  let dari = s0;
+  let iHening = 0;
+  for (let k = 0; k < N - 1; k++) {
+    const sisaHuruf = panjang.slice(k).reduce((x, y) => x + y, 0);
+    const lama = ((s1 - dari) * panjang[k]) / sisaHuruf; // perkiraan durasi baris k
+    const kira = dari + lama;
+    let pilih = -1;
+    let skorTerbaik = -Infinity;
+    // sisakan cukup jeda untuk batas-batas berikutnya
+    for (let i = iHening; i <= tengah.length - (N - 1 - k); i++) {
+      const h = tengah[i];
+      const mid = (h.a + h.b) / 2;
+      if (h.a < dari + 0.3) continue;
+      const selisih = Math.abs(mid - kira);
+      if (selisih > Math.max(1.4, lama * 0.6)) continue;
+      const skor = (h.b - h.a) - (0.7 * selisih) / Math.max(1, lama);
+      if (skor > skorTerbaik) {
+        skorTerbaik = skor;
+        pilih = i;
+      }
+    }
+    if (pilih < 0) return null;
+    potong.push({ a: dari, b: tengah[pilih].a });
+    dari = tengah[pilih].b;
+    iHening = pilih + 1;
+  }
+  potong.push({ a: dari, b: s1 });
+  // uji kewajaran: kecepatan bicara tiap baris tidak boleh jauh dari rata-rata
+  const bicara = potong.reduce((s, p) => s + (p.b - p.a), 0);
+  const perHuruf = bicara / panjang.reduce((x, y) => x + y, 0);
+  for (let k = 0; k < N; k++) {
+    const d = potong[k].b - potong[k].a;
+    const rasio = d / Math.max(0.2, panjang[k] * perHuruf);
+    if (d < 0.4 || rasio < 0.45 || rasio > 2.2) return null;
+  }
+  return potong.map((p) => ({ a: Math.max(0, p.a - 0.04), b: Math.min(total, p.b + 0.1) }));
+}
+
+/** Satu permintaan untuk beberapa baris. Mengembalikan WAV per baris, atau null bila pemotongan tidak meyakinkan. */
+export async function ttsGeminiGabung(baris: string[], suara: string) {
+  const prompt =
+    `${GAYA_GEMINI}. Naskah di bawah terdiri dari ${baris.length} paragraf yang dipisah baris kosong. ` +
+    `Beri jeda hening kira-kira satu detik setiap selesai satu paragraf, dan jangan beri jeda panjang di dalam paragraf. ` +
+    `Bacakan hanya isi naskahnya:\n\n${baris.join('\n\n')}`;
+  const { pcm, rate } = await mintaGemini(prompt, suara);
+  const potong = potongPerBaris(pcm, rate, baris.map((b) => b.length));
+  if (!potong) return null;
+  return potong.map((p) => {
+    const bagian = pcm.subarray(Math.floor(p.a * rate) * 2, Math.floor(p.b * rate) * 2);
+    return { data: wav(bagian, rate), ext: 'wav', durasi: bagian.length / 2 / rate };
+  });
 }
 
 // ---------------- Utama ----------------
@@ -203,6 +318,46 @@ async function buatBaris(spec: Spec, i: number, u: Calon, tmp: string): Promise<
   return { file: `suara/${a.id}.wav`, durasi: r.durasi, mulut, kata: kataDariAmplop(a.narasi, mulut, spec.fps) };
 }
 
+function simpanWav(spec: Spec, i: number, r: { data: Buffer; durasi: number }, tmp: string): HasilBaris {
+  const a = spec.adegan[i];
+  fs.writeFileSync(path.join(tmp, `${a.id}.wav`), r.data);
+  const mulut = amplopWav(r.data, spec.fps);
+  return { file: `suara/${a.id}.wav`, durasi: r.durasi, mulut, kata: kataDariAmplop(a.narasi, mulut, spec.fps) };
+}
+
+/**
+ * Gemini untuk satu kelompok baris: digabung menjadi sesedikit mungkin permintaan.
+ * Bila pemotongan sebuah gabungan tidak meyakinkan, gabungan itu diulang per baris (lebih boros, tapi karaoke tetap pas).
+ */
+async function buatKelompokGemini(spec: Spec, indeks: number[], suara: string, tmp: string, catat: (pesan: string) => Promise<void>, maju: (i: number, h: HasilBaris) => Promise<void>) {
+  const tumpukan: number[][] = [];
+  let kini: number[] = [];
+  let huruf = 0;
+  for (const i of indeks) {
+    const n = spec.adegan[i].narasi.length;
+    if (kini.length && (kini.length >= MAKS_BARIS_GABUNG || huruf + n > MAKS_HURUF_GABUNG)) {
+      tumpukan.push(kini);
+      kini = [];
+      huruf = 0;
+    }
+    kini.push(i);
+    huruf += n;
+  }
+  if (kini.length) tumpukan.push(kini);
+
+  for (const t of tumpukan) {
+    const teks = t.map((i) => spec.adegan[i].narasi.replace(/\*/g, ''));
+    const gabung = t.length > 1 ? await ttsGeminiGabung(teks, suara) : null;
+    if (gabung) {
+      await catat(`Gemini: ${t.length} baris dibuat dalam 1 permintaan`);
+      for (const [k, i] of t.entries()) await maju(i, simpanWav(spec, i, gabung[k], tmp));
+      continue;
+    }
+    if (t.length > 1) await catat(`Gemini: jeda antar-baris tidak terbaca jelas, ${t.length} baris diulang satu per satu`);
+    for (const [k, i] of t.entries()) await maju(i, simpanWav(spec, i, await ttsGemini(teks[k], suara), tmp));
+  }
+}
+
 const namaSuara = (id: string) => id.replace(/^[a-z]{2}-[A-Z]{2}-|Neural$/g, '');
 
 /** Suara pilihan per baris: suara tokoh (format Cerita) atau suara narator dari form. */
@@ -309,11 +464,13 @@ export async function buatSuara(job: Job, dir: string) {
           if (n > 0) await lapor(job.id, { log: `${label}: pindah ke ${NAMA_PENYEDIA[u.penyedia]} "${u.nama ?? u.suara}" untuk SEMUA baris ${label} agar suaranya konsisten` });
           await lapor(job.id, { log: `Suara ${label}: ${u.penyedia === 'elevenlabs' ? `ElevenLabs (${modelEleven()})` : NAMA_PENYEDIA[u.penyedia]} · ${u.nama ?? u.suara}` });
           const sementara = new Map<number, HasilBaris>();
-          for (const i of g.indeks) {
-            sementara.set(i, await buatBaris(spec, i, u, tmp));
+          const maju = async (i: number, h: HasilBaris) => {
+            sementara.set(i, h);
             await lapor(job.id, { persen: Math.round(((selesaiN + sementara.size) / spec.adegan.length) * 100) });
-            console.log(`  ✓ ${spec.adegan[i].id} (${label}): ${sementara.get(i)!.durasi.toFixed(2)} dtk`);
-          }
+            console.log(`  ✓ ${spec.adegan[i].id} (${label}): ${h.durasi.toFixed(2)} dtk`);
+          };
+          if (u.penyedia === 'gemini') await buatKelompokGemini(spec, g.indeks, u.suara, tmp, (pesan) => lapor(job.id, { log: pesan }), maju);
+          else for (const i of g.indeks) await maju(i, await buatBaris(spec, i, u, tmp));
           for (const [i, h] of sementara) hasil.set(i, h);
           selesaiN += sementara.size;
           berhasil = true;

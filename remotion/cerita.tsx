@@ -5,7 +5,7 @@ import { PARAM_EKSPRESI, PARAM_POSE, PARAM_TUBUH, TokohSvg, VIEWBOX, campurEkspr
 import { KARAKTER_CADANGAN } from '../shared/karakter-bawaan';
 import { aksiAktifPada, gabungUrutanFallback, rencanakanAksi } from './karakter/aksi/resolver';
 import { terapkanAksi } from './karakter/aksi/terapkan';
-import { BendaAksi } from './karakter/aksi/Benda';
+import { BendaAksi } from './karakter/aksi/Benda.tsx';
 import { bentukBenda, sudutBuka } from './karakter/aksi/benda';
 import { useGambarAksi } from './karakter/aksi/asetSvg';
 import type { ModeAnimasi } from '../shared/tipe';

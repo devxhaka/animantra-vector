@@ -13,22 +13,20 @@ import {
 } from 'remotion';
 import type { Adegan, Aset, Gaya, Keyframe, Label, Spec } from '../shared/tipe';
 import { huruf, hurufMono, hurufTeks } from './huruf';
-import { BerkasCtx, useBerkas } from './berkas';
 import { goyangKamera, transformParallax } from './kamera';
 import { KerumunanView } from './kerumunan';
 import { teksLanjut, waktuLanjut } from '../shared/seri';
 import { formatDari } from '../shared/formats';
 import { TEKS_KLASIK, teksKontras } from '../shared/gaya-bawaan';
 import { EfekView, LapisanLampu, LapisanSuasana, TokohAdeganView, cariKarakter, guncangan, keadaanAkhir, type KeadaanAkhir } from './cerita';
+import { AdeganCtx, BerkasCtx, GayaCtx, buatKapan, useBerkas, useGaya, waktuKata } from './konteks';
+import { BingkaiPanggung, JudulTata, LabelGaris, LapisanPanel, LatarGaya, StikerView, klipBingkai, tataDari } from './panel';
 
 export type PropsVideo = {
   spec: Spec;
   /** Kosong saat render (pakai staticFile). Di studio: "/media/<slug>/". */
   basis?: string;
 };
-
-const GayaCtx = React.createContext<Gaya | null>(null);
-const useGaya = () => React.useContext(GayaCtx)!;
 
 export const totalFrame = (spec: Spec) =>
   Math.max(1, spec.adegan.reduce((s, a) => s + Math.max(1, Math.round(a.durasi * spec.fps)), 0));
@@ -105,85 +103,106 @@ const AdeganView: React.FC<{ spec: Spec; adegan: Adegan; indeks: number; awal?: 
   const tokoh = [...(adegan.tokoh ?? [])].sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || (a.y ?? 0.8) - (b.y ?? 0.8));
   const g = guncangan(adegan.suasana, t);
   const pembicara = adegan.pembicara && adegan.pembicara !== 'narator' ? cariKarakter(spec.pemeran, adegan.pembicara) : null;
+  const gaya = spec.gaya;
+  const tata = tataDari(gaya);
+  const bingkai = tata.panggung === 'bingkai';
+  const ctxAdegan = React.useMemo(() => ({ kapan: buatKapan(adegan), durasi: adegan.durasi }), [adegan]);
+  const seri = spec.seri || gaya.seri || formatDari(spec.format).seri;
 
   const filterCss = FILTER_ADEGAN[adegan.filter ?? ''] ?? null;
   const dunia = (
     <>
-      {adegan.latar ? null : <Latar />}
-      <AbsoluteFill
-        style={{
-          transform: `translate(${g.x + gg.x}px, ${g.y + gg.y}px) rotate(${g.r + rotKamera + gg.r}deg) scale(${Z}) translate(${-kx * 100}%, ${-ky * 100}%)`,
-          transformOrigin: '50% 50%',
-        }}
-      >
-        {adegan.latar ? (
-          <Parallax p={adegan.latarParallax} kam={kam}>
-            <Img src={berkas(adegan.latar)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-          </Parallax>
-        ) : null}
-        {aset.filter((a) => (a.z ?? 0) < 5).map((a, i) => (
-          <Parallax key={'a' + i} p={a.parallax} kam={kam}>
-            <AsetView aset={a} t={t} />
-          </Parallax>
-        ))}
-        {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) < 5 ? <EfekView key={'e' + i} e={e} i={i} /> : null))}
-        {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) < 5 ? <KerumunanView key={'k' + i} k={k} /> : null))}
-        {tokoh.map((tk) => (
-          <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis={tk.lenganDiDepan ? 'tanpa-lengan-depan' : undefined} />
-        ))}
-        {/* lengan yang memeluk/merangkul: digambar di atas semua tokoh */}
-        {tokoh.filter((tk) => tk.lenganDiDepan).map((tk) => (
-          <TokohAdeganView key={tk.id + '-lengan'} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis="lengan-depan" />
-        ))}
-        {aset.filter((a) => (a.z ?? 0) >= 5).map((a, i) => (
-          <Parallax key={'d' + i} p={a.parallax} kam={kam}>
-            <AsetView aset={a} t={t} />
-          </Parallax>
-        ))}
-        {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) >= 5 ? <KerumunanView key={'m' + i} k={k} /> : null))}
-        {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) >= 5 ? <EfekView key={'f' + i} e={e} i={i} /> : null))}
-        {adegan.suasana?.lampu?.length ? <LapisanLampu lampu={adegan.suasana.lampu} gelap={adegan.suasana.gelapLampu} /> : null}
-        {(adegan.label ?? []).map((l, i) => (
-          <LabelView key={i} label={l} t={t} />
-        ))}
+      {adegan.latar && !bingkai ? null : <LatarGaya />}
+      {bingkai ? <BingkaiPanggung /> : null}
+      <AbsoluteFill style={bingkai ? klipBingkai(gaya) : undefined}>
+        <AbsoluteFill
+          style={{
+            transform: `translate(${g.x + gg.x}px, ${g.y + gg.y}px) rotate(${g.r + rotKamera + gg.r}deg) scale(${Z}) translate(${-kx * 100}%, ${-ky * 100}%)`,
+            transformOrigin: bingkai ? '50% 39.5%' : '50% 50%',
+          }}
+        >
+          {adegan.latar ? (
+            <Parallax p={adegan.latarParallax} kam={kam}>
+              <Img src={berkas(adegan.latar)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            </Parallax>
+          ) : null}
+          {aset.filter((a) => (a.z ?? 0) < 5).map((a, i) => (
+            <Parallax key={'a' + i} p={a.parallax} kam={kam}>
+              <AsetView aset={a} t={t} />
+            </Parallax>
+          ))}
+          {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) < 5 ? <EfekView key={'e' + i} e={e} i={i} /> : null))}
+          {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) < 5 ? <KerumunanView key={'k' + i} k={k} /> : null))}
+          {tokoh.map((tk) => (
+            <TokohAdeganView key={tk.id} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis={tk.lenganDiDepan ? 'tanpa-lengan-depan' : undefined} />
+          ))}
+          {/* lengan yang memeluk/merangkul: digambar di atas semua tokoh */}
+          {tokoh.filter((tk) => tk.lenganDiDepan).map((tk) => (
+            <TokohAdeganView key={tk.id + '-lengan'} tokoh={tk} karakter={cariKarakter(spec.pemeran, tk.id)} adegan={adegan} awal={awal?.[tk.id]} modeAnimasi={spec.modeAnimasi} lapis="lengan-depan" />
+          ))}
+          {aset.filter((a) => (a.z ?? 0) >= 5).map((a, i) => (
+            <Parallax key={'d' + i} p={a.parallax} kam={kam}>
+              <AsetView aset={a} t={t} />
+            </Parallax>
+          ))}
+          {(adegan.kerumunan ?? []).map((k, i) => ((k.z ?? 0) >= 5 ? <KerumunanView key={'m' + i} k={k} /> : null))}
+          {(adegan.efek ?? []).map((e, i) => ((e.z ?? 0) >= 5 ? <EfekView key={'f' + i} e={e} i={i} /> : null))}
+          {adegan.suasana?.lampu?.length ? <LapisanLampu lampu={adegan.suasana.lampu} gelap={adegan.suasana.gelapLampu} /> : null}
+          {(adegan.label ?? []).map((l, i) => (tata.label === 'garis' ? <LabelGaris key={i} label={l} /> : <LabelView key={i} label={l} t={t} />))}
+        </AbsoluteFill>
       </AbsoluteFill>
+      {bingkai ? <BingkaiPanggung depan /> : null}
       {adegan.suasana ? <LapisanSuasana s={adegan.suasana} /> : null}
     </>
   );
 
   return (
-    <AbsoluteFill style={{ opacity: opasitas, transform: `translateX(${geser}px)` }}>
-      {/* tanpa filter: struktur DOM sama persis seperti sebelumnya (regresi piksel) */}
-      {filterCss ? <AbsoluteFill style={{ filter: filterCss }}>{dunia}</AbsoluteFill> : dunia}
-      {adegan.filter === 'kilas-balik' ? <TepiKilasBalik /> : null}
-      {adegan.tampilJudul ? <Judul spec={spec} terang={!!adegan.latar} /> : null}
-      {adegan.teksBesar ? <TeksBesar teks={adegan.teksBesar} /> : null}
-      {adegan.kartu ? <Kartu {...adegan.kartu} atas={!!adegan.tokoh?.length} /> : null}
-      {adegan.cap ? <Cap teks={adegan.cap} /> : null}
-      {adegan.kartuWaktu ? <KartuWaktuView k={adegan.kartuWaktu} spec={spec} /> : null}
-      {adegan.kartuKabar ? <KartuKabarView k={adegan.kartuKabar} /> : null}
-      {adegan.pilihan ? <PilihanView p={adegan.pilihan} adegan={adegan} spec={spec} /> : null}
-      {adegan.kartuPenutup ? (
-        <KartuPenutupView k={adegan.kartuPenutup} />
-      ) : adegan.pilihan && t >= waktuLanjut(adegan) && teksLanjut(adegan.pilihan, spec) ? null : (
-        <Subtitle
-          narasi={adegan.narasi}
-          kata={adegan.kata}
-          nama={pembicara?.nama ?? adegan.namaPembicara ?? undefined}
-          warnaNama={pembicara ? pembicara.warna.atasan : adegan.namaPembicara ? '#e8a33a' : undefined}
-        />
-      )}
-      {transisi === 'hitam' ? <LayarHitam dari={[0, Math.round(fps * 0.4)]} ke={[1, 0]} /> : null}
-      {adegan.pudarAkhir ? (
-        <LayarHitam dari={[durationInFrames - Math.max(1, Math.round(adegan.pudarAkhir * fps)), durationInFrames - 1]} ke={[0, 1]} />
-      ) : null}
-      {adegan.suara ? <Html5Audio src={berkas(adegan.suara)} /> : null}
-      {(adegan.sfx ?? []).map((s, i) => (
-        <Sequence key={i} from={Math.round(s.pada * fps)} layout="none">
-          <Html5Audio src={berkas(s.file)} volume={s.volume ?? 0.6} />
-        </Sequence>
-      ))}
-    </AbsoluteFill>
+    <AdeganCtx.Provider value={ctxAdegan}>
+      <AbsoluteFill style={{ opacity: opasitas, transform: `translateX(${geser}px)` }}>
+        {/* tanpa filter: struktur DOM sama persis seperti sebelumnya (regresi piksel) */}
+        {filterCss ? <AbsoluteFill style={{ filter: filterCss }}>{dunia}</AbsoluteFill> : dunia}
+        {adegan.filter === 'kilas-balik' ? <TepiKilasBalik /> : null}
+        {adegan.judul ? (
+          tata.judul === 'besar' ? (
+            <Judul spec={{ ...spec, judul: adegan.judul.teks, judulSorot: adegan.judul.sorot, seri: adegan.judul.tag ?? seri }} terang={!!adegan.latar} />
+          ) : (
+            <JudulTata tag={adegan.judul.tag} teks={adegan.judul.teks} sorot={adegan.judul.sorot} nomor={adegan.judul.nomor} />
+          )
+        ) : adegan.tampilJudul ? (
+          tata.judul === 'besar' ? <Judul spec={spec} terang={!!adegan.latar} /> : <JudulTata tag={seri} teks={spec.judul} sorot={spec.judulSorot} />
+        ) : null}
+        {adegan.teksBesar ? <TeksBesar teks={adegan.teksBesar} /> : null}
+        {adegan.panel?.length ? <LapisanPanel panel={adegan.panel} panelY={adegan.panelY} /> : null}
+        {(adegan.stiker ?? []).map((s, i) => (
+          <StikerView key={i} s={s} />
+        ))}
+        {adegan.kartu ? <Kartu {...adegan.kartu} atas={!!adegan.tokoh?.length} /> : null}
+        {adegan.cap ? <Cap teks={adegan.cap} /> : null}
+        {adegan.kartuWaktu ? <KartuWaktuView k={adegan.kartuWaktu} spec={spec} /> : null}
+        {adegan.kartuKabar ? <KartuKabarView k={adegan.kartuKabar} /> : null}
+        {adegan.pilihan ? <PilihanView p={adegan.pilihan} adegan={adegan} spec={spec} /> : null}
+        {adegan.kartuPenutup ? (
+          <KartuPenutupView k={adegan.kartuPenutup} />
+        ) : adegan.pilihan && t >= waktuLanjut(adegan) && teksLanjut(adegan.pilihan, spec) ? null : (
+          <Subtitle
+            narasi={adegan.narasi}
+            kata={adegan.kata}
+            nama={pembicara?.nama ?? adegan.namaPembicara ?? undefined}
+            warnaNama={pembicara ? pembicara.warna.atasan : adegan.namaPembicara ? '#e8a33a' : undefined}
+          />
+        )}
+        {transisi === 'hitam' ? <LayarHitam dari={[0, Math.round(fps * 0.4)]} ke={[1, 0]} /> : null}
+        {adegan.pudarAkhir ? (
+          <LayarHitam dari={[durationInFrames - Math.max(1, Math.round(adegan.pudarAkhir * fps)), durationInFrames - 1]} ke={[0, 1]} />
+        ) : null}
+        {adegan.suara ? <Html5Audio src={berkas(adegan.suara)} /> : null}
+        {(adegan.sfx ?? []).map((s, i) => (
+          <Sequence key={i} from={Math.round(s.pada * fps)} layout="none">
+            <Html5Audio src={berkas(s.file)} volume={s.volume ?? 0.6} />
+          </Sequence>
+        ))}
+      </AbsoluteFill>
+    </AdeganCtx.Provider>
   );
 };
 
@@ -398,26 +417,6 @@ const KartuPenutupView: React.FC<{ k: NonNullable<Adegan['kartuPenutup']> }> = (
   );
 };
 
-const Latar: React.FC = () => {
-  const g = useGaya();
-  return (
-    <AbsoluteFill>
-      <div style={{ position: 'absolute', inset: 0, background: g.warna.latar }} />
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: '62%',
-          bottom: 0,
-          background: g.warna.lantai,
-          boxShadow: `inset 0 14px 0 ${g.gelap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}`,
-        }}
-      />
-    </AbsoluteFill>
-  );
-};
-
 // ---------------------------------------------------------------------------
 
 const easingDari = (e: Keyframe['easing']) =>
@@ -488,10 +487,10 @@ const LabelView: React.FC<{ label: Label; t: number }> = ({ label, t }) => {
   const { fps, width, height } = useVideoConfig();
   const g = useGaya();
   const f = huruf(g.huruf);
-  const mulai = label.muncul ?? 0.4;
+  const mulai = React.useContext(AdeganCtx).kapan(label, 0.4);
   const sp = spring({ frame: (t - mulai) * fps, fps, config: { damping: 12, stiffness: 160 } });
   if (t < mulai) return null;
-  const kiri = (label.arah ?? 'kiri') === 'kiri';
+  const kiri = label.arah !== 'kanan';
   const radius = g.bentuk.label === 'pil' ? 999 : Math.min(g.bentuk.sudut, 12);
   return (
     <div
@@ -671,20 +670,6 @@ const Kartu: React.FC<{ tag?: string; teks: string; nilai?: string; atas?: boole
   );
 };
 
-/** Waktu tiap kata: dari `adegan.kata` (hasil `studio tts`), atau dibagi rata menurut panjang kata. */
-function waktuKata(kata: string[], durasi: number, data?: Adegan['kata']) {
-  if (data && data.length === kata.length) return data.map((d) => ({ a: d.a, b: d.b }));
-  const bobot = kata.map((k) => k.replace(/\*/g, '').length + 1);
-  const total = bobot.reduce((x, y) => x + y, 0);
-  const pakai = Math.max(0.5, durasi - 0.35);
-  let t = 0;
-  return bobot.map((w) => {
-    const a = t;
-    t += (w / total) * pakai;
-    return { a, b: t };
-  });
-}
-
 /** Subtitle karaoke: tampilan diatur di Gaya Saya → Teks karaoke. *kata* = kata kunci. */
 export const Subtitle: React.FC<{ narasi: string; kata?: Adegan['kata']; nama?: string; warnaNama?: string; paksaPosisi?: number }> = ({ narasi, kata: dataKata, nama, warnaNama, paksaPosisi }) => {
   const frame = useCurrentFrame();
@@ -694,7 +679,7 @@ export const Subtitle: React.FC<{ narasi: string; kata?: Adegan['kata']; nama?: 
   const f = hurufTeks(T.huruf, g.huruf);
   const t = frame / fps;
   const kata = narasi.split(/\s+/).filter(Boolean);
-  if (!kata.length) return null;
+  if (!kata.length || T.mode === 'sembunyi') return null;
   const w = waktuKata(kata, durationInFrames / fps, dataKata);
 
   // kata aktif = kata terakhir yang sudah mulai diucapkan

@@ -48,7 +48,27 @@ function periksaSpecLanjut(spec: any, dir: string, masalah: string[], saran: str
     if (a.pembicara && a.pembicara !== 'narator' && !(a.tokoh ?? []).some((t: any) => t.id === a.pembicara)) saran.push(`adegan[${i}] "${a.id}": ${a.pembicara} bicara tapi tidak tampil (mulutnya tidak terlihat)`);
     const kata = String(a.narasi ?? '').split(/\s+/).length;
     if (a.durasi && kata / a.durasi > 3.4) saran.push(`adegan[${i}] "${a.id}" narasi terlalu padat (${kata} kata / ${a.durasi} dtk)`);
-    if (!a.aset?.length && !a.tokoh?.length && !a.latar) saran.push(`adegan[${i}] "${a.id}" tidak punya visual (aset/tokoh/latar)`);
+    if (!a.aset?.length && !a.tokoh?.length && !a.latar && !a.panel?.length) saran.push(`adegan[${i}] "${a.id}" tidak punya visual (aset/tokoh/latar/panel)`);
+    if (a.judul?.sorot && !String(a.judul.teks).includes(a.judul.sorot)) masalah.push(`adegan[${i}] judul.sorot harus potongan persis dari judul.teks`);
+    for (const p of a.panel ?? []) for (const b of p.butir ?? []) if (b.ikon && !ada(b.ikon)) masalah.push(`adegan[${i}] ikon panel tidak ada: ${b.ikon}`);
+    // `saat` harus cocok dengan kata di narasi; kalau tidak, elemen muncul di waktu bawaan dan lepas dari suara
+    const polos = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const kataNarasi = String(a.narasi ?? '').split(/\s+/).map(polos);
+    const semuaSaat: string[] = [];
+    const kumpul = (o: any) => o?.saat && semuaSaat.push(o.saat);
+    for (const l of a.label ?? []) kumpul(l);
+    for (const s of a.stiker ?? []) kumpul(s);
+    for (const p of a.panel ?? []) {
+      kumpul(p);
+      for (const b of p.butir ?? []) kumpul(b);
+      for (const b of p.baris ?? []) if (typeof b === 'object') kumpul(b);
+      kumpul(p.baik);
+      kumpul(p.buruk);
+    }
+    for (const s of semuaSaat) {
+      const awal = polos(s.split(/\s+/)[0]);
+      if (!kataNarasi.some((k: string) => k === awal || k.startsWith(awal))) saran.push(`adegan[${i}] "${a.id}": saat "${s}" tidak ada di narasi`);
+    }
   }
   for (const [i, a] of (spec.adegan ?? []).entries())
     for (const s of a.aset ?? [])

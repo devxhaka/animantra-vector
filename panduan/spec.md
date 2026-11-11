@@ -66,4 +66,7 @@ Waktu: **detik, relatif awal adegan**.
   ke folder video saat render.
 - **Zona aman**: judul 8–30% atas · teks besar ±22% · kartu ±72–78% · subtitle ±82–88%.
   Benda utama sebaiknya di y 0,35–0,7.
+- **Judul per adegan, panel, stiker, label garis, `saat`**: field `judul`, `panel`, `panelY`,
+  `stiker`, dan `label.saat` dijelaskan di `panduan/tampilan-baru.md`. Wajib dipakai kalau
+  `gaya.tata` terisi.
 - Jalankan `node studio.mjs cek --job <ID>` setiap kali selesai mengubah spec.

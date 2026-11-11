@@ -7,7 +7,7 @@ export const FORMATS: FormatDef[] = [
     deskripsi: 'Cara kerja satu benda',
     seri: 'KITA BONGKAR',
     panduan:
-      'Bongkar SATU benda. Adegan 1: hook berupa pertanyaan + judul + benda utuh. Lalu tampilan potongan (cutaway) yang memperlihatkan komponen dalam, dengan label panah per komponen. Tiap komponen bergerak sesuai fungsinya (pakai animasi/layer terpisah). Tutup dengan rangkuman 1 kalimat + ajakan.',
+      'Bongkar SATU benda. Adegan 1: hook berupa pertanyaan + judul + benda utuh. Lalu tampilan potongan (cutaway) yang memperlihatkan komponen dalam, dengan label panah per komponen. Tiap komponen bergerak sesuai fungsinya (pakai animasi/layer terpisah). Tutup dengan rangkuman 1 kalimat + ajakan. Kalau gaya memakai tata judul selain "besar", beri tiap adegan "judul" sendiri dan pakai panel/stiker (lihat panduan/tampilan-baru.md).',
   },
   {
     kunci: 'cerita',
@@ -32,6 +32,22 @@ export const FORMATS: FormatDef[] = [
     seri: 'BAYANGKAN',
     panduan:
       'Kisah sinematik orang kedua: PENONTON adalah tokoh utama ("kamu/kalian", "adikmu"), narator berbicara langsung kepadanya; pemeran dari pesanan menjadi tokoh yang menemani penonton. Berseri: bila ada "lanjutan", buka dengan adegan recap 1-2 kalimat ber-cap "SEBELUMNYA…" (+ filter kilas-balik), lalu adegan pertama episode ini memakai kartuWaktu (label hari, jam, seri - episode). Alur: situasi mencekam → kejadian demi kejadian dengan emosi naik-turun (close-up dengan kamera zoom saat emosional) → kilas balik pakai filter "kilas-balik" → momen hening/doa → penutup kartuPenutup (atas "BAYANGKAN", judul seri, bawah "BERSAMBUNG"/"TAMAT") + pudarAkhir. SERI INTERAKTIF (bawaan bila bukan episode terakhir): adegan terakhir memakai "pilihan" (2 opsi dilema singkat, mis. "BERBAGI AIRNYA" / "SIMPAN UNTUK KALIAN") ditutup narasi "Apa yang akan kamu lakukan? A atau B?"; bila pesanan berisi lanjutan.pilihanPenonton, episode dibuka dengan menjalankan pilihan itu lalu menilainya + pelajarannya (bersumber). Kalimat pendek, indrawi, 60-120 dtk. Topik agama/sejarah: hanya dari sumber sahih (catat di riset.md), sampaikan sebagai gambaran/ilustrasi, dan sosok yang tidak boleh/tidak perlu digambar jelas pakai siluet. Lihat panduan/pov-bayangkan.md.',
+  },
+  {
+    kunci: 'boleh-nggak',
+    nama: 'Boleh Nggak?',
+    deskripsi: 'Aturan, hak & kewajiban',
+    seri: 'BOLEH NGGAK?',
+    panduan:
+      'Jawab satu pertanyaan aturan/hak sehari-hari. Adegan 1: situasi yang bikin kesal + pertanyaannya sebagai judul adegan. Lalu dasar aturannya (sebut pasal/sumber dari riset) dengan panel "hitung" atau "angka", lalu vonis dengan panel "banding" (BOLEH vs TIDAK BOLEH). Tutup dengan panel "tanya" yang mengajak komentar. Narasi huruf kecil, 2–3 kata per baris subtitle. Lihat panduan/tampilan-baru.md.',
+  },
+  {
+    kunci: 'kinetik',
+    nama: 'Kinetik UI',
+    deskripsi: 'Judul berganti + kartu UI',
+    seri: 'KINETIK',
+    panduan:
+      'Video tipografi tanpa benda utama: tiap adegan punya "judul" sendiri (3–4 kata, satu kata disorot) dan SATU panel (petak, daftar, daftar berpanah, angka). Adegan pendek 2,5–4 detik, 8–12 adegan. Ikon panel digambar sebagai SVG kecil di aset/. Tutup dengan ajakan (panel "tanya" atau judul "Cek bio!"). Lihat panduan/tampilan-baru.md.',
   },
   {
     kunci: 'tur-lingkungan',

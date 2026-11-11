@@ -1,0 +1,59 @@
+{
+  "id": "skema-hardware",
+  "nama": "Skema Hardware",
+  "seri": "",
+  "warna": {
+    "latar": "#ece8df",
+    "lantai": "#e3ddd0",
+    "teks": "#17171a",
+    "merek": "#d4421e",
+    "sorot": "#f5d63d",
+    "teksSorot": "#111111",
+    "label": "#f5d63d",
+    "teksLabel": "#111111"
+  },
+  "gelap": false,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 12,
+    "label": "kotak",
+    "outline": 4,
+    "bayangan": true
+  },
+  "latar": {
+    "jenis": "gradien",
+    "pola": "wajik"
+  },
+  "tata": {
+    "judul": "ringkas",
+    "label": "garis",
+    "panggung": "penuh",
+    "kaca": false
+  },
+  "teks": {
+    "huruf": "montserrat",
+    "ukuran": 48,
+    "kapital": false,
+    "warna": "#ffffff",
+    "garis": {
+      "warna": "#111111",
+      "tebal": 0
+    },
+    "bayangan": false,
+    "latarBaris": {
+      "aktif": true,
+      "warna": "#1c1c1e",
+      "opasitas": 0.94
+    },
+    "posisi": 0.69,
+    "kataPerBaris": 3,
+    "mode": "karaoke",
+    "efek": "kotak",
+    "warnaSorot": "#f5d63d",
+    "warnaTeksSorot": "#111111",
+    "kataKunci": "tidak",
+    "warnaKunci": "#e8c25a",
+    "masuk": "pop"
+  },
+  "logo": null
+}

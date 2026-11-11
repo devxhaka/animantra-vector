@@ -61,6 +61,12 @@ berseri. Field khusus adegan: `cap`, `kartuWaktu`, `kartuPenutup`, `filter`, `pu
 `pilihan` (seri interaktif), `kartuKabar`, `namaPembicara`, plus `episode` di spec. Bila `lanjutan.pilihanPenonton`
 ada, buka episode dengan menjalankan pilihan itu. Topik agama/sejarah: hanya dari sumber sahih (catat di `riset.md`).
 
+### Tampilan baru (gaya dengan `tata` / `latar`)
+Kalau `gaya.tata` atau `gaya.latar` terisi di `pesanan.json`, atau format = `boleh-nggak` / `kinetik`,
+**baca `panduan/tampilan-baru.md` dulu**. Tiap adegan diberi `judul` sendiri, isi layar dibangun
+bertahap dengan `panel` / `stiker` / `label` yang muncul lewat `saat: "<kata narasi>"`, dan zona
+aman mengikuti tabel tata letak di panduan itu (bukan zona di bagian "Cek gambar").
+
 ### Naskah
 - Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook pertanyaan di 3 detik pertama.
 - ±2,5 kata per detik bicara. Satu adegan = satu ide, 6–16 kata, durasi 2,5–7 detik.

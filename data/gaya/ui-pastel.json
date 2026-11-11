@@ -1,0 +1,59 @@
+{
+  "id": "ui-pastel",
+  "nama": "UI Pastel",
+  "seri": "",
+  "warna": {
+    "latar": "#eef3ff",
+    "lantai": "#fdeeee",
+    "teks": "#17181c",
+    "merek": "#4f7df0",
+    "sorot": "#b565d8",
+    "teksSorot": "#ffffff",
+    "label": "#ffffff",
+    "teksLabel": "#17181c"
+  },
+  "gelap": false,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 26,
+    "label": "pil",
+    "outline": 0,
+    "bayangan": false
+  },
+  "latar": {
+    "jenis": "gradien",
+    "pola": "kisi"
+  },
+  "tata": {
+    "judul": "ringkas",
+    "label": "garis",
+    "panggung": "penuh",
+    "kaca": false
+  },
+  "teks": {
+    "huruf": "montserrat",
+    "ukuran": 64,
+    "kapital": true,
+    "warna": "#ffffff",
+    "garis": {
+      "warna": "#111111",
+      "tebal": 10
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.84,
+    "kataPerBaris": 3,
+    "mode": "karaoke",
+    "efek": "kotak",
+    "warnaSorot": "#7c3aed",
+    "warnaTeksSorot": "#ffffff",
+    "kataKunci": "warna",
+    "warnaKunci": "#7ee8fa",
+    "masuk": "pop"
+  },
+  "logo": null
+}

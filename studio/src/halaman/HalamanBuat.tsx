@@ -1,5 +1,5 @@
 import React from 'react';
-import { api, suaraBisaDipakai, useOpsi, type Opsi } from '../api';
+import { api, suaraBisaDipakai, useOpsi, usePolling, type Opsi, type PemakaianGemini } from '../api';
 import type { Gaya, Karakter, VideoMeta } from '../../../shared/tipe';
 import { formatBertokoh, formatDari, formatMisteri } from '../../../shared/formats';
 import { PilihSuara } from '../komponen/PilihSuara';
@@ -39,10 +39,19 @@ const SUDUT = [
   ['narator', 'Narator + dialog'],
 ];
 const CONTOH_TOPIK: Record<string, string> = {
-  'kita-bongkar': 'kenapa setrika bisa mati sendiri saat sudah panas',
+  'kita-bongkar': 'kenapa VGA sekarang makin besar & berkipas banyak',
   cerita: 'kakak menenangkan adik yang takut gelap saat mati lampu',
   'mystery-story': 'misteri kapal hantu Mary Celeste',
   'pov-bayangkan': 'bayangkan kamu dan adikmu terjebak banjir besar di malam hari',
+  'boleh-nggak': 'bolehkah bos melarang karyawan mengambil cuti tahunan',
+  kinetik: 'cara bikin animasi 2D keren cuma dengan 2 tools AI',
+};
+const GAYA_SARAN: Record<string, string> = {
+  'kita-bongkar': 'skema-hardware',
+  'boleh-nggak': 'panel-neon',
+  kinetik: 'ui-pastel',
+  'mystery-story': 'mystery-files',
+  'pov-bayangkan': 'sinematik',
 };
 const durasiSaran = (f: string) => (formatMisteri(f) ? [30, 60] : f === 'pov-bayangkan' ? [60, 120] : formatBertokoh(f) ? [60, 180] : [30, 60]);
 
@@ -57,6 +66,7 @@ function bacaDraf(): Form | null {
 
 export function HalamanBuat({ lanjutDari }: { lanjutDari?: string }) {
   const opsi = useOpsi();
+  const [gemini] = usePolling(api.pemakaianGemini, 15_000);
   const { status, muatJobs } = useData();
   const [form, setForm] = React.useState<Form>(() => (lanjutDari ? { ...AWAL } : bacaDraf() ?? AWAL));
   const [langkah, setLangkah] = React.useState(0);
@@ -140,7 +150,11 @@ export function HalamanBuat({ lanjutDari }: { lanjutDari?: string }) {
   React.useEffect(() => {
     api.gaya().then((g) => {
       setGaya(g);
-      setForm((f) => (f.gayaId && g.daftar.some((x) => x.id === f.gayaId) ? f : { ...f, gayaId: f.format === 'pov-bayangkan' && g.daftar.some((x) => x.id === 'sinematik') ? 'sinematik' : g.aktif }));
+      setForm((f) => {
+        if (f.gayaId && g.daftar.some((x) => x.id === f.gayaId)) return f;
+        const saran = GAYA_SARAN[f.format];
+        return { ...f, gayaId: saran && g.daftar.some((x) => x.id === saran) ? saran : g.aktif };
+      });
     });
   }, []);
 
@@ -216,7 +230,13 @@ export function HalamanBuat({ lanjutDari }: { lanjutDari?: string }) {
                   <button
                     key={f.kunci}
                     className={'kartu-format' + (form.format === f.kunci ? ' pilih' : '')}
-                    onClick={() => setForm((x) => ({ ...x, format: f.kunci, pemeran: x.format === f.kunci ? x.pemeran : [], lanjutan: x.format === f.kunci ? x.lanjutan : '' }))}
+                    onClick={() =>
+                      setForm((x) => {
+                        const saran = GAYA_SARAN[f.kunci];
+                        const gayaId = saran && gaya?.daftar.some((g) => g.id === saran) ? saran : x.gayaId;
+                        return { ...x, format: f.kunci, gayaId, pemeran: x.format === f.kunci ? x.pemeran : [], lanjutan: x.format === f.kunci ? x.lanjutan : '' };
+                      })
+                    }
                   >
                     <b>{f.nama}</b>
                     <span>{f.deskripsi}</span>
@@ -342,6 +362,7 @@ export function HalamanBuat({ lanjutDari }: { lanjutDari?: string }) {
                 </p>
               ) : null}
               {opsi?.kreditEleven && form.suara.startsWith('elevenlabs:') ? <KreditEleven k={opsi.kreditEleven} durasi={form.durasi} /> : null}
+              {gemini && (!form.suara.includes(':') || form.suara.startsWith('gemini:')) ? <KreditGemini g={gemini} /> : null}
               {opsi?.kreditEleven?.gratis && opsi.grupSuara.some((g) => g.penyedia === 'elevenlabs-berbayar') ? (
                 <p className="catatan">Akun ElevenLabs gratis hanya bisa memakai suara <b>bawaan</b>. Suara dari Voice Library dinonaktifkan di daftar.</p>
               ) : null}
@@ -472,5 +493,21 @@ function KreditEleven({ k, durasi }: { k: NonNullable<Opsi['kreditEleven']>; dur
       {reset ? ` (pulih ${reset})` : ''}. Cukup untuk ±{cukup} video {durasi} detik.
       {cukup < 1 ? ' Kredit tidak cukup: suara akan memakai Gemini kalau key-nya ada.' : ''}
     </p>
+  );
+}
+
+function KreditGemini({ g }: { g: PemakaianGemini }) {
+  const persen = Math.min(100, Math.round((g.sisa / Math.max(1, g.batas)) * 100));
+  const jam = new Date(g.pulih).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className={'catatan' + (g.habis ? ' kurang' : '')}>
+      <div>
+        Kuota Gemini TTS hari ini: sisa <b>{g.sisa}</b> / {g.batas} video (1 video = 1 permintaan · pulih pukul {jam}).
+      </div>
+      <div className="meter-limit">
+        <i style={{ width: `${persen}%` }} />
+      </div>
+      {g.habis ? <div>Kuota harian habis — pilih suara Edge (gratis tanpa batas) atau tunggu pulih.</div> : null}
+    </div>
   );
 }

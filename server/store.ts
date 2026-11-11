@@ -3,7 +3,7 @@ import path from 'node:path';
 import { DIR, bacaJson, tulisJson } from './jalur';
 import { TAHAP, type FormBaru, type Gaya, type Job, type Karakter, type KunciTahap, type Spec, type VideoMeta } from '../shared/tipe';
 import { AGENT_MORGAN, KARAKTER_CONTOH } from '../shared/karakter-bawaan';
-import { GAYA_BAWAAN, GAYA_MYSTERY, GAYA_SINEMATIK } from '../shared/gaya-bawaan';
+import { GAYA_BAWAAN, GAYA_MYSTERY, GAYA_PRESET_BARU, GAYA_SINEMATIK } from '../shared/gaya-bawaan';
 import { formatBertokoh, formatDari } from '../shared/formats';
 
 const sekarang = () => new Date().toISOString();
@@ -41,6 +41,7 @@ export function daftarGaya(): Gaya[] {
   if (!fs.existsSync(fileGaya('bawaan'))) tulisJson(fileGaya('bawaan'), GAYA_BAWAAN);
   benihSekali(path.join(DIR.gaya, '.seed-mystery-files'), fileGaya(GAYA_MYSTERY.id), GAYA_MYSTERY);
   benihSekali(path.join(DIR.gaya, '.seed-sinematik'), fileGaya(GAYA_SINEMATIK.id), GAYA_SINEMATIK);
+  for (const gp of GAYA_PRESET_BARU) benihSekali(path.join(DIR.gaya, `.seed-${gp.id}`), fileGaya(gp.id), gp);
   return fs
     .readdirSync(DIR.gaya)
     .filter((f) => f.endsWith('.json'))

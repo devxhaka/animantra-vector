@@ -2,7 +2,7 @@ import React from 'react';
 import { Thumbnail, Player } from '@remotion/player';
 import { api } from '../api';
 import type { EfekSorot, Gaya, GayaTeks } from '../../../shared/tipe';
-import { GAYA_BAWAAN, HURUF_PILIHAN, HURUF_TEKS, PRESET_TEKS, PRESET_WARNA, TEKS_KLASIK, paletDariMerek, rasioKontras } from '../../../shared/gaya-bawaan';
+import { GAYA_BAWAAN, HURUF_PILIHAN, HURUF_TEKS, LATAR_BAWAAN, PRESET_TAMPILAN, PRESET_TEKS, PRESET_WARNA, TATA_BAWAAN, TEKS_KLASIK, paletDariMerek, rasioKontras } from '../../../shared/gaya-bawaan';
 import { SPEC_CONTOH } from '../../../shared/contoh-spec';
 import { PratinjauTeks, VideoUtama, totalFrame } from '../../../remotion/Video';
 import { huruf, hurufTeks } from '../../../remotion/huruf';
@@ -128,6 +128,58 @@ export function HalamanGaya() {
           <label className="label">Nama seri</label>
           <input className="isian" placeholder="Kosong = ikut nama format (mis. KITA BONGKAR)" value={draf.seri} onChange={(e) => ubah((g) => (g.seri = e.target.value.toUpperCase()))} />
 
+          <div className="eyebrow-kecil jarak">Tampilan siap pakai</div>
+          <div className="label">Satu klik mengisi warna, huruf, teks, latar, dan tata letak</div>
+          <div className="grid-preset">
+            {PRESET_TAMPILAN.map((p) => (
+              <button
+                key={p.nama}
+                title={p.ket}
+                className={'kartu-preset' + (JSON.stringify(p.gaya.warna) === JSON.stringify(w) && JSON.stringify(p.gaya.tata) === JSON.stringify(draf.tata ?? null) ? ' pilih' : '')}
+                onClick={() => ubah((g) => Object.assign(g, salin(p.gaya)))}
+              >
+                <Swatch w={p.gaya.warna} besar />
+                <span>{p.nama}</span>
+              </button>
+            ))}
+          </div>
+          <details className="rinci">
+            <summary>Atur latar & tata letak</summary>
+            <label className="label">Latar</label>
+            <select className="isian" value={(draf.latar ?? LATAR_BAWAAN).jenis} onChange={(e) => ubah((g) => (g.latar = { ...(g.latar ?? LATAR_BAWAAN), jenis: e.target.value as any }))}>
+              <option value="dua-nada">Dua nada (latar + lantai)</option>
+              <option value="gradien">Gradien lembut</option>
+              <option value="sorot">Sorot di tengah</option>
+            </select>
+            <label className="label">Pola latar</label>
+            <select className="isian" value={(draf.latar ?? LATAR_BAWAAN).pola} onChange={(e) => ubah((g) => (g.latar = { ...(g.latar ?? LATAR_BAWAAN), pola: e.target.value as any }))}>
+              <option value="tidak">Tanpa pola</option>
+              <option value="kisi">Kisi kotak</option>
+              <option value="wajik">Wajik samar</option>
+              <option value="lantai-kisi">Lantai kisi perspektif</option>
+            </select>
+            <label className="label">Judul</label>
+            <select className="isian" value={(draf.tata ?? TATA_BAWAAN).judul} onChange={(e) => ubah((g) => (g.tata = { ...(g.tata ?? TATA_BAWAAN), judul: e.target.value as any }))}>
+              <option value="besar">Besar + badge seri</option>
+              <option value="ringkas">Ringkas di kiri atas</option>
+              <option value="pil">Pil topik di tengah</option>
+              <option value="tengah">Tengah, kata sorot berwarna</option>
+            </select>
+            <label className="label">Label</label>
+            <select className="isian" value={(draf.tata ?? TATA_BAWAAN).label} onChange={(e) => ubah((g) => (g.tata = { ...(g.tata ?? TATA_BAWAAN), label: e.target.value as any }))}>
+              <option value="panah">Panah menempel</option>
+              <option value="garis">Garis penunjuk</option>
+            </select>
+            <label className="centang">
+              <input type="checkbox" checked={(draf.tata ?? TATA_BAWAAN).panggung === 'bingkai'} onChange={(e) => ubah((g) => (g.tata = { ...(g.tata ?? TATA_BAWAAN), panggung: e.target.checked ? 'bingkai' : 'penuh' }))} />
+              Visual di dalam bingkai kartu
+            </label>
+            <label className="centang">
+              <input type="checkbox" checked={(draf.tata ?? TATA_BAWAAN).kaca} onChange={(e) => ubah((g) => (g.tata = { ...(g.tata ?? TATA_BAWAAN), kaca: e.target.checked }))} />
+              Kartu kaca bercahaya
+            </label>
+          </details>
+
           <div className="eyebrow-kecil jarak">Warna</div>
           <div className="label">Mulai dari contoh</div>
           <div className="grid-preset">
@@ -248,6 +300,7 @@ export function HalamanGaya() {
                 ['karaoke', 'Karaoke'],
                 ['muncul', 'Muncul per kata'],
                 ['statis', 'Diam'],
+                ['sembunyi', 'Tanpa teks'],
               ] as const
             ).map(([k, n]) => (
               <button key={k} className={T.mode === k ? 'pilih' : ''} onClick={() => ubahTeks((t) => (t.mode = k))}>
@@ -255,7 +308,7 @@ export function HalamanGaya() {
               </button>
             ))}
           </div>
-          {T.mode !== 'statis' ? (
+          {T.mode !== 'statis' && T.mode !== 'sembunyi' ? (
             <>
               <div className="label">Efek kata yang sedang diucapkan</div>
               <div className="grid-efek">

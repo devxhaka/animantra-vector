@@ -1,0 +1,60 @@
+{
+  "id": "kertas-kisi",
+  "nama": "Kertas Kisi",
+  "seri": "",
+  "warna": {
+    "latar": "#f8f9fc",
+    "lantai": "#eef2f9",
+    "teks": "#181c26",
+    "merek": "#2563eb",
+    "sorot": "#ef4444",
+    "teksSorot": "#ffffff",
+    "label": "#181c26",
+    "teksLabel": "#ffffff",
+    "peringatan": "#ef4444"
+  },
+  "gelap": false,
+  "huruf": "tegas",
+  "bentuk": {
+    "sudut": 18,
+    "label": "pil",
+    "outline": 3,
+    "bayangan": true
+  },
+  "latar": {
+    "jenis": "dua-nada",
+    "pola": "kisi"
+  },
+  "tata": {
+    "judul": "tengah",
+    "label": "garis",
+    "panggung": "penuh",
+    "kaca": false
+  },
+  "teks": {
+    "huruf": "ikut",
+    "ukuran": 62,
+    "kapital": false,
+    "warna": "#ffffff",
+    "garis": {
+      "warna": "#111111",
+      "tebal": 10
+    },
+    "bayangan": true,
+    "latarBaris": {
+      "aktif": false,
+      "warna": "#000000",
+      "opasitas": 0.55
+    },
+    "posisi": 0.84,
+    "kataPerBaris": 4,
+    "mode": "sembunyi",
+    "efek": "warna",
+    "warnaSorot": "#e8c25a",
+    "warnaTeksSorot": "#111111",
+    "kataKunci": "warna",
+    "warnaKunci": "#e8c25a",
+    "masuk": "tidak"
+  },
+  "logo": null
+}

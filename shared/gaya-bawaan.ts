@@ -1,4 +1,4 @@
-import type { Gaya, GayaTeks, HurufTeks } from './tipe';
+import type { Gaya, GayaLatar, GayaTata, GayaTeks, HurufTeks } from './tipe';
 
 export type PresetWarna = { nama: string; warna: Gaya['warna']; gelap: boolean };
 
@@ -136,6 +136,124 @@ export const GAYA_BAWAAN: Gaya = {
   bentuk: { sudut: 10, label: 'pil', outline: 4, bayangan: true },
   logo: null,
 };
+
+export const LATAR_BAWAAN: GayaLatar = { jenis: 'dua-nada', pola: 'tidak' };
+export const TATA_BAWAAN: GayaTata = { judul: 'besar', label: 'panah', panggung: 'penuh', kaca: false };
+
+/** Campur dua warna hex (#rrggbb). t = 0 → a, t = 1 → b. */
+export function campurWarna(a: string, b: string, t: number) {
+  const ha = a.replace('#', ''), hb = b.replace('#', '');
+  const c = [0, 2, 4].map((i) => Math.round(parseInt(ha.slice(i, i + 2), 16) * (1 - t) + parseInt(hb.slice(i, i + 2), 16) * t));
+  return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+
+const TEKS_NEON: GayaTeks = {
+  ...TEKS_KLASIK,
+  huruf: 'baloo',
+  ukuran: 60,
+  garis: { warna: '#04102b', tebal: 0 },
+  bayangan: true,
+  posisi: 0.76,
+  kataPerBaris: 3,
+  mode: 'karaoke',
+  efek: 'warna',
+  warnaSorot: '#d7f52f',
+  kataKunci: 'warna',
+  warnaKunci: '#d7f52f',
+  masuk: 'pop',
+};
+
+/** Tampilan siap pakai: satu klik mengisi warna, huruf, bentuk, teks, latar, dan tata letak sekaligus. */
+export const PRESET_TAMPILAN: { nama: string; ket: string; gaya: Pick<Gaya, 'warna' | 'gelap' | 'huruf' | 'bentuk' | 'teks' | 'latar' | 'tata'> }[] = [
+  {
+    nama: 'Skema Hardware',
+    ket: 'Krem, garis tegas, label kuning bergaris penunjuk, judul berganti tiap adegan',
+    gaya: {
+      warna: { latar: '#ece8df', lantai: '#e3ddd0', teks: '#17171a', merek: '#d4421e', sorot: '#f5d63d', teksSorot: '#111111', label: '#f5d63d', teksLabel: '#111111' },
+      gelap: false,
+      huruf: 'tegas',
+      bentuk: { sudut: 12, label: 'kotak', outline: 4, bayangan: true },
+      latar: { jenis: 'gradien', pola: 'wajik' },
+      tata: { judul: 'ringkas', label: 'garis', panggung: 'penuh', kaca: false },
+      teks: {
+        ...TEKS_KLASIK,
+        huruf: 'montserrat',
+        ukuran: 48,
+        garis: { warna: '#111111', tebal: 0 },
+        bayangan: false,
+        latarBaris: { aktif: true, warna: '#1c1c1e', opasitas: 0.94 },
+        posisi: 0.69,
+        kataPerBaris: 3,
+        mode: 'karaoke',
+        efek: 'kotak',
+        warnaSorot: '#f5d63d',
+        warnaTeksSorot: '#111111',
+        kataKunci: 'tidak',
+        masuk: 'pop',
+      },
+    },
+  },
+  {
+    nama: 'Panel Neon',
+    ket: 'Biru malam, visual di dalam kartu kaca, pil topik hijau neon, subtitle 3 kata',
+    gaya: {
+      warna: { latar: '#0c2a66', lantai: '#061640', teks: '#ffffff', merek: '#19c2c9', sorot: '#d7f52f', teksSorot: '#0b1a3a', label: '#0f2f6e', teksLabel: '#ffffff' },
+      gelap: true,
+      huruf: 'bulat',
+      bentuk: { sudut: 26, label: 'pil', outline: 0, bayangan: false },
+      latar: { jenis: 'sorot', pola: 'tidak' },
+      tata: { judul: 'pil', label: 'garis', panggung: 'bingkai', kaca: true },
+      teks: TEKS_NEON,
+    },
+  },
+  {
+    nama: 'Presenter Neon',
+    ket: 'Tokoh berdiri di panggung kota malam, lantai kisi perspektif, daftar poin bernomor',
+    gaya: {
+      warna: { latar: '#0a1f4d', lantai: '#040d26', teks: '#ffffff', merek: '#17b8c4', sorot: '#c8f02c', teksSorot: '#0b1a3a', label: '#0d2a5c', teksLabel: '#ffffff' },
+      gelap: true,
+      huruf: 'bulat',
+      bentuk: { sudut: 20, label: 'pil', outline: 0, bayangan: false },
+      latar: { jenis: 'sorot', pola: 'lantai-kisi' },
+      tata: { judul: 'pil', label: 'garis', panggung: 'penuh', kaca: true },
+      teks: { ...TEKS_NEON, warnaSorot: '#c8f02c', warnaKunci: '#c8f02c' },
+    },
+  },
+  {
+    nama: 'UI Pastel',
+    ket: 'Putih bersih berkisi, kartu melayang, judul tengah berganti tiap adegan, tanpa subtitle',
+    gaya: {
+      warna: { latar: '#eef3ff', lantai: '#fdeeee', teks: '#17181c', merek: '#4f7df0', sorot: '#b565d8', teksSorot: '#ffffff', label: '#ffffff', teksLabel: '#17181c' },
+      gelap: false,
+      huruf: 'tegas',
+      bentuk: { sudut: 26, label: 'pil', outline: 0, bayangan: false },
+      latar: { jenis: 'gradien', pola: 'kisi' },
+      tata: { judul: 'tengah', label: 'garis', panggung: 'penuh', kaca: false },
+      teks: { ...TEKS_KLASIK, mode: 'sembunyi' },
+    },
+  },
+  {
+    nama: 'Kertas Kisi',
+    ket: 'Kertas kotak-kotak teknis, garis tegas, langkah bernomor, cocok untuk bedah sistem/keamanan',
+    gaya: {
+      warna: { latar: '#f8f9fc', lantai: '#eef2f9', teks: '#181c26', merek: '#2563eb', sorot: '#ef4444', teksSorot: '#ffffff', label: '#181c26', teksLabel: '#ffffff', peringatan: '#ef4444' },
+      gelap: false,
+      huruf: 'tegas',
+      bentuk: { sudut: 18, label: 'pil', outline: 3, bayangan: true },
+      latar: { jenis: 'dua-nada', pola: 'kisi' },
+      tata: { judul: 'tengah', label: 'garis', panggung: 'penuh', kaca: false },
+      teks: { ...TEKS_KLASIK, mode: 'sembunyi' },
+    },
+  },
+];
+
+export const GAYA_PRESET_BARU: Gaya[] = PRESET_TAMPILAN.map((p) => ({
+  id: p.nama.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  nama: p.nama,
+  seri: '',
+  ...p.gaya,
+  logo: null,
+}));
 
 export const HURUF_PILIHAN: { kunci: Gaya['huruf']; nama: string; ket: string }[] = [
   { kunci: 'tegas', nama: 'Tegas', ket: 'Inter tebal, bersih (bawaan)' },

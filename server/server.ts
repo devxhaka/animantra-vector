@@ -11,6 +11,7 @@ import { buatPromptTempel, uraiTempelan } from '../shared/prompt-tempel';
 import type { FormBaru, Gaya, Job } from '../shared/tipe';
 import { azureSiap, daftarSuaraAzure, ttsAzure } from './azure';
 import { SUARA_EDGE, edgeSiap, ttsEdge } from './edge';
+import { pemakaianGemini } from './gemini';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, modelEleven, sisaKreditEleven, ttsEleven } from './elevenlabs';
 
 const app = express();
@@ -65,6 +66,9 @@ app.get('/api/opsi', async (_req, res) => {
     edgeSiap: edgeSiap(),
   });
 });
+
+// Pemakaian Gemini TTS hari ini (dihitung studio sendiri; Google tidak menyediakan API sisa kuota).
+app.get('/api/gemini/pemakaian', (_req, res) => res.json(pemakaianGemini()));
 
 // Coba suara: 1 kalimat pendek, disimpan supaya tiap suara hanya memotong kredit sekali.
 const KALIMAT_COBA = 'Halo! Kok pulpen klik bisa gantian? Yuk, kita bongkar bareng.';

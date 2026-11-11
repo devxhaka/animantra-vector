@@ -30,6 +30,10 @@ export type Gaya = {
   };
   /** Tampilan teks karaoke/subtitle. Kosong = tampilan lama (TEKS_KLASIK). */
   teks?: GayaTeks;
+  /** Latar kanvas. Kosong = dua nada (latar di atas, lantai di bawah). */
+  latar?: GayaLatar;
+  /** Tata letak judul, label, panggung, dan kartu. Kosong = tampilan lama. */
+  tata?: GayaTata;
   logo?: {
     file: string; // nama file di data/gaya/
     posisi: 'kiri-atas' | 'kanan-atas' | 'kiri-bawah' | 'kanan-bawah';
@@ -37,7 +41,25 @@ export type Gaya = {
   } | null;
 };
 
-export type HurufTeks = KunciHuruf | 'poppins' | 'montserrat' | 'bebas' | 'lilita' | 'baloo';
+export type GayaLatar = {
+  /** dua-nada = latar + lantai rata · gradien = latar→lantai dengan rona lembut · sorot = cahaya di tengah, tepi gelap */
+  jenis: 'dua-nada' | 'gradien' | 'sorot';
+  /** kisi = kertas kotak-kotak · wajik = pola belah ketupat samar · lantai-kisi = lantai perspektif bergaris */
+  pola: 'tidak' | 'kisi' | 'wajik' | 'lantai-kisi';
+};
+
+export type GayaTata = {
+  /** besar = badge + judul 108px · ringkas = eyebrow mono + judul 2 baris kiri-atas · pil = pil topik di tengah · tengah = judul tengah, kata sorot berwarna */
+  judul: 'besar' | 'ringkas' | 'pil' | 'tengah';
+  /** panah = "TEKS →" menempel titik · garis = titik + garis penunjuk ke pil */
+  label: 'panah' | 'garis';
+  /** bingkai = visual adegan tampil di dalam kartu membulat di paruh atas */
+  panggung: 'penuh' | 'bingkai';
+  /** kartu & panel tembus pandang dengan tepi bercahaya (gaya neon) */
+  kaca: boolean;
+};
+
+export type HurufTeks =KunciHuruf | 'poppins' | 'montserrat' | 'bebas' | 'lilita' | 'baloo';
 export type EfekSorot = 'warna' | 'stabilo' | 'kotak' | 'garis-bawah' | 'membesar' | 'tidak';
 
 export type GayaTeks = {
@@ -50,7 +72,7 @@ export type GayaTeks = {
   latarBaris: { aktif: boolean; warna: string; opasitas: number }; // kotak di belakang seluruh baris
   posisi: number; // 0..1 dari atas (tengah teks)
   kataPerBaris: number;
-  mode: 'karaoke' | 'muncul' | 'statis'; // karaoke = kata aktif disorot; muncul = kata muncul satu per satu
+  mode: 'karaoke' | 'muncul' | 'statis' | 'sembunyi'; // karaoke = kata aktif disorot; muncul = kata muncul satu per satu; sembunyi = tanpa subtitle (judul adegan jadi teksnya)
   efek: EfekSorot; // efek untuk kata yang sedang diucapkan
   warnaSorot: string; // warna stabilo/kotak/garis/teks aktif
   warnaTeksSorot: string; // warna huruf di atas stabilo/kotak
@@ -197,8 +219,44 @@ export type Label = {
   teks: string;
   x: number; // titik yang ditunjuk 0..1
   y: number;
-  arah?: 'kiri' | 'kanan'; // label di kiri titik (panah →) atau kanan (panah ←)
+  arah?: 'kiri' | 'kanan' | 'atas' | 'bawah'; // sisi label terhadap titik ('atas'/'bawah' hanya untuk tata.label = 'garis')
   muncul?: number; // detik relatif adegan
+  saat?: string; // muncul tepat saat kata ini diucapkan (menimpa `muncul`)
+};
+
+/** Waktu tampil elemen: `saat` (kata narasi) lebih diutamakan daripada `muncul` (detik). */
+export type WaktuTampil = { muncul?: number; saat?: string };
+
+export type ButirPanel = WaktuTampil & {
+  teks: string; // *kata* = diwarnai
+  ket?: string; // keterangan kecil di bawah teks
+  ikon?: string; // SVG/PNG relatif folder video, misal "aset/ikon-bola.svg"
+  coret?: boolean; // dicoret setelah tampil (hal yang ditinggalkan)
+};
+
+/**
+ * Panel = komponen UI bertahap yang dirender mesin (bukan digambar di SVG).
+ * Panel tanpa `y` ditumpuk dari `adegan.panelY`; panel dengan `y` (0..1 = tepi atas) diletakkan bebas.
+ */
+export type Panel = WaktuTampil & { y?: number } & (
+    | { jenis: 'angka'; tag?: string; dari?: number; ke: number; awalan?: string; akhiran?: string; ket?: string }
+    | { jenis: 'daftar'; butir: ButirPanel[]; nomor?: boolean; panah?: boolean; jeda?: number }
+    | { jenis: 'petak'; butir: ButirPanel[]; kolom?: number; jeda?: number }
+    | { jenis: 'hitung'; tag?: string; jumlah: number; terisi?: number; kolom?: number; ket?: string }
+    | { jenis: 'banding'; baik: WaktuTampil & { tag: string; teks: string }; buruk: WaktuTampil & { tag: string; teks: string } }
+    | { jenis: 'tanya'; tag?: string; teks: string; pilihan?: string[] }
+    | { jenis: 'catatan'; teks: string }
+    | { jenis: 'terminal'; judul?: string; baris: (string | ButirPanel)[]; jeda?: number }
+  );
+
+/** Stiker ledakan kecil ("KLAK!", "3 KIPAS!") atau stempel kotak miring ("KERENTANAN DITEMUKAN") di titik tertentu. */
+export type Stiker = WaktuTampil & {
+  teks: string;
+  x: number;
+  y: number;
+  ukuran?: number;
+  bentuk?: 'ledakan' | 'stempel';
+  warna?: 'sorot' | 'merah' | 'hijau';
 };
 
 export type Adegan = {
@@ -208,6 +266,12 @@ export type Adegan = {
   suara?: string | null; // file audio relatif, diisi `studio tts`
   tampilJudul?: boolean; // tampilkan judul + badge seri
   teksBesar?: string | null; // teks kejutan besar, misal "KLIK!"
+  /** Judul khusus adegan ini (berganti tiap adegan). `tag` = baris kecil di atasnya, `sorot` = potongan `teks` yang diwarnai, `nomor` = lencana langkah bulat (1, 2, 3). */
+  judul?: { tag?: string; teks: string; sorot?: string; nomor?: number } | null;
+  panel?: Panel[];
+  /** Tepi atas tumpukan panel tanpa `y` (0..1, bawaan 0,34). */
+  panelY?: number;
+  stiker?: Stiker[];
   aset?: Aset[];
   label?: Label[];
   kartu?: { tag?: string; teks: string; nilai?: string } | null;

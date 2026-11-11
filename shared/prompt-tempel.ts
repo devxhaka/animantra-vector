@@ -52,6 +52,14 @@ export function buatPromptTempel(m: MasukanPrompt): string {
     baris.push('');
     baris.push('Field khusus format ini (semua opsional, per adegan): "cap" (label kecil kiri atas, misal "SEBELUMNYA…"), "kartuWaktu" {"label":"HARI KETIGA","jam":"11:51","hilang":3.8}, "kartuPenutup" {"atas":"BAYANGKAN","judul":"<judul seri>","bawah":"BERSAMBUNG"} (hanya adegan terakhir), "filter": "kilas-balik" | "hitam-putih", "pudarAkhir": 1.2 (detik memudar ke hitam di akhir), "transisi": "hitam". Di spec: "episode": <nomor>. Jangan pakai "cap" dan "kartuWaktu" di adegan yang sama. Seri interaktif: adegan terakhir boleh "pilihan": {"opsi": ["OPSI A", "OPSI B"]} (narasi membacakan pertanyaannya), "kartuKabar": {"label","teks"}, "namaPembicara": "TEMAN" untuk tokoh figuran.');
   }
+  if (m.gaya.tata || m.gaya.latar || m.format.kunci === 'boleh-nggak' || m.format.kunci === 'kinetik') {
+    baris.push('');
+    baris.push('Tampilan bertahap (gaya memakai tata/latar baru):');
+    baris.push('- Beri tiap adegan "judul": {"tag"?,"teks","sorot"?,"nomor"?} (sorot harus potongan persis dari teks; nomor 1..N opsional untuk langkah bernomor).');
+    baris.push('- Gunakan "saat": "<kata dari narasi>" pada label, stiker, atau panel/butir agar elemen muncul tepat saat kata itu diucapkan.');
+    baris.push('- Komponen "panel" per adegan (maks 3): jenis "angka" {"ke","dari"?,"akhiran"?,"tag"?,"ket"?}, "daftar" {"butir":[{"teks","ket"?,"ikon"?,"coret"?,"saat"?}],"nomor"?,"panah"?}, "petak" {"butir":[...],"kolom":2}, "hitung" {"jumlah":12,"terisi":12,"tag"?,"ket"?}, "banding" {"baik":{"tag","teks"},"buruk":{"tag","teks"}}, "tanya" {"teks","tag"?,"pilihan"?}, "catatan" {"teks"}, atau "terminal" {"judul"?:"msfconsole","baris":["$ exploit","[+] Celah ditemukan"]}.');
+    baris.push('- Opsional "stiker": [{"teks":"3 KIPAS!","x":0.8,"y":0.33,"bentuk"?:"ledakan"|"stempel","warna"?:"sorot"|"merah"|"hijau","saat"?}].');
+  }
   baris.push('');
   baris.push('ATURAN NASKAH:');
   baris.push('- Bahasa Indonesia santai dan jelas, gaya kreator edukasi. Hook berupa pertanyaan di 3 detik pertama.');
