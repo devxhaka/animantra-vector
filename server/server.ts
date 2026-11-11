@@ -13,6 +13,7 @@ import { azureSiap, daftarSuaraAzure, ttsAzure } from './azure';
 import { SUARA_EDGE, edgeSiap, ttsEdge } from './edge';
 import { pemakaianGemini } from './gemini';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, modelEleven, sisaKreditEleven, ttsEleven } from './elevenlabs';
+import { daftarSuaraVoiceStudio, suaraUtamaVoiceStudio, ttsVoiceStudio, voicestudioSiap } from './voicestudio';
 
 const app = express();
 app.use(express.json({ limit: '15mb' }));
@@ -43,11 +44,25 @@ app.get('/api/status', (_req, res) => {
 });
 app.get('/api/opsi', async (_req, res) => {
   const audio = (d: string) => fs.readdirSync(d).filter((f) => /\.(mp3|wav|m4a|ogg|aac)$/i.test(f));
-  const [eleven, kredit, azure] = await Promise.all([daftarSuaraEleven(), sisaKreditEleven(), daftarSuaraAzure()]);
+  const [eleven, kredit, azure, vs] = await Promise.all([
+    daftarSuaraEleven(),
+    sisaKreditEleven(),
+    daftarSuaraAzure(),
+    daftarSuaraVoiceStudio(),
+  ]);
   const bisa = eleven.filter((v) => v.bisa);
   const tidak = eleven.filter((v) => !v.bisa);
   const ops = (v: (typeof eleven)[number]) => ({ nilai: `elevenlabs:${v.id}`, nama: (v.indonesia ? '🇮🇩 ' : '') + v.nama, ket: v.ket, bisa: v.bisa });
   const grupSuara = [
+    ...(vs.length
+      ? [
+          {
+            penyedia: 'voicestudio',
+            nama: 'VoiceStudio · suara kloning (lokal)',
+            suara: vs.map((v) => ({ nilai: `voicestudio:${v.id}`, nama: v.nama, ket: v.ket, bisa: true })),
+          },
+        ]
+      : []),
     ...(edgeSiap() ? [{ penyedia: 'edge', nama: 'Microsoft Edge · tanpa key', suara: SUARA_EDGE.map((v) => ({ nilai: `edge:${v.id}`, nama: '🇮🇩 ' + v.nama, ket: v.ket, bisa: true })) }] : []),
     ...(azure.length ? [{ penyedia: 'azure', nama: 'Microsoft Azure · penutur Indonesia', suara: azure.map((v) => ({ nilai: `azure:${v.id}`, nama: '🇮🇩 ' + v.nama, ket: v.ket, bisa: true })) }] : []),
     ...(bisa.length ? [{ penyedia: 'elevenlabs', nama: 'ElevenLabs', suara: bisa.map(ops) }] : []),
@@ -64,6 +79,7 @@ app.get('/api/opsi', async (_req, res) => {
     elevenSiap: elevenSiap(),
     azureSiap: azureSiap(),
     edgeSiap: edgeSiap(),
+    voicestudioSiap: voicestudioSiap(),
   });
 });
 
@@ -98,6 +114,11 @@ app.post('/api/suara/coba', async (req, res) => {
       const { mp3 } = await ttsEleven(KALIMAT_COBA, id);
       fs.writeFileSync(path.join(dirCoba, dasar + '.mp3'), mp3);
       return res.json({ url: `/coba-suara/${dasar}.mp3` });
+    }
+    if (penyedia === 'voicestudio') {
+      const { data } = await ttsVoiceStudio(KALIMAT_COBA, id);
+      fs.writeFileSync(path.join(dirCoba, dasar + '.wav'), data);
+      return res.json({ url: `/coba-suara/${dasar}.wav` });
     }
     const { ttsGemini } = await import('../cli/tts');
     const { data } = await ttsGemini(KALIMAT_COBA, id);
@@ -215,7 +236,18 @@ app.post('/api/jobs', (req, res) => {
     format: String(b.format || 'kita-bongkar'),
     topik: String(b.topik || '').trim(),
     durasi: Math.max(15, Math.min(180, Number(b.durasi) || 50)),
-    suara: String(b.suara || (edgeSiap() ? 'edge:id-ID-GadisNeural' : azureSiap() ? 'azure:id-ID-GadisNeural' : elevenSiap() ? 'elevenlabs:EXAVITQu4vr4xnSDxMaL' : 'gemini:Kore')),
+    suara: String(
+      b.suara ||
+        (voicestudioSiap() && suaraUtamaVoiceStudio()
+          ? `voicestudio:${suaraUtamaVoiceStudio()}`
+          : edgeSiap()
+            ? 'edge:id-ID-GadisNeural'
+            : azureSiap()
+              ? 'azure:id-ID-GadisNeural'
+              : elevenSiap()
+                ? 'elevenlabs:EXAVITQu4vr4xnSDxMaL'
+                : 'gemini:Kore'),
+    ),
     musik: String(b.musik || 'otomatis'),
     gayaId: String(b.gayaId || S.gayaAktifId()),
     ...(formatBertokoh(b.format)

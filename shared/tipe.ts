@@ -338,7 +338,7 @@ export type Karakter = {
   usia: Usia;
   pakaian: Pakaian;
   warna: { kulit: string; rambut: string; atasan: string; bawahan: string; penutup: string; sepatu: string; dalam?: string };
-  suara: string; // "azure:id-ID-GadisNeural" dst.
+  suara: string; // "voicestudio:44d7b906" / "edge:id-ID-ArdiNeural" dst.
   rambut?: GayaRambut;
   aksesori?: Aksesori[];
 };

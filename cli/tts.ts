@@ -6,22 +6,40 @@ import { azureSiap, ttsAzure } from '../server/azure';
 import { edgeSiap, ttsEdge } from '../server/edge';
 import { daftarSuaraEleven, elevenSiap, faktorKredit, galatIzinSuara, infoSuaraEleven, modelEleven, sisaKreditEleven, ttsEleven } from '../server/elevenlabs';
 import { catatPermintaanGemini, modelGeminiTts, tandaiGeminiHabis } from '../server/gemini';
+import { ttsVoiceStudio, voicestudioSiap } from '../server/voicestudio';
 
 const JEDA = 0.35; // detik napas di akhir tiap adegan
 
-type Penyedia = 'edge' | 'azure' | 'elevenlabs' | 'gemini';
+type Penyedia = 'edge' | 'azure' | 'elevenlabs' | 'gemini' | 'voicestudio';
 export function uraiSuara(nilai: string): { penyedia: Penyedia; id: string } {
   const [p, ...sisa] = (nilai || '').split(':');
-  if ((p === 'edge' || p === 'azure' || p === 'elevenlabs' || p === 'gemini') && sisa.length) return { penyedia: p, id: sisa.join(':') };
+  if ((p === 'edge' || p === 'azure' || p === 'elevenlabs' || p === 'gemini' || p === 'voicestudio') && sisa.length)
+    return { penyedia: p, id: sisa.join(':') };
   return { penyedia: 'gemini', id: nilai || 'Kore' }; // format lama: "Kore"
 }
-const siap = (p: Penyedia) => (p === 'edge' ? edgeSiap() : p === 'azure' ? azureSiap() : p === 'elevenlabs' ? elevenSiap() : !!process.env.GEMINI_API_KEY);
-const NAMA_PENYEDIA: Record<Penyedia, string> = { edge: 'Edge (tanpa key)', azure: 'Azure', elevenlabs: 'ElevenLabs', gemini: 'Gemini' };
+const siap = (p: Penyedia) =>
+  p === 'edge'
+    ? edgeSiap()
+    : p === 'azure'
+      ? azureSiap()
+      : p === 'elevenlabs'
+        ? elevenSiap()
+        : p === 'voicestudio'
+          ? voicestudioSiap()
+          : !!process.env.GEMINI_API_KEY;
+const NAMA_PENYEDIA: Record<Penyedia, string> = {
+  edge: 'Edge (tanpa key)',
+  azure: 'Azure',
+  elevenlabs: 'ElevenLabs',
+  gemini: 'Gemini',
+  voicestudio: 'VoiceStudio (suara kloning · lokal)',
+};
 const SUARA_CADANGAN: Record<Penyedia, string> = {
   edge: process.env.EDGE_VOICE_CADANGAN || 'id-ID-GadisNeural',
   azure: process.env.AZURE_SPEECH_VOICE_CADANGAN || 'id-ID-GadisNeural',
   elevenlabs: process.env.ELEVENLABS_VOICE_CADANGAN || 'EXAVITQu4vr4xnSDxMaL',
   gemini: 'Kore',
+  voicestudio: process.env.VOICESTUDIO_VOICE || '',
 };
 
 // ---------------- Gemini ----------------
@@ -312,7 +330,12 @@ async function buatBaris(spec: Spec, i: number, u: Calon, tmp: string): Promise<
       r.kata.length === kataNarasi.length ? kataNarasi.map((t, j) => ({ t, a: r.kata[j].a, b: r.kata[j].b })) : kataDariAmplop(a.narasi, mulut, spec.fps);
     return { file: `suara/${a.id}.mp3`, durasi: r.durasi, mulut, kata };
   }
-  const r = u.penyedia === 'azure' ? await ttsAzure(teks, u.suara) : await ttsGemini(teks, u.suara);
+  const r =
+    u.penyedia === 'azure'
+      ? await ttsAzure(teks, u.suara)
+      : u.penyedia === 'voicestudio'
+        ? await ttsVoiceStudio(teks, u.suara)
+        : await ttsGemini(teks, u.suara);
   fs.writeFileSync(path.join(tmp, `${a.id}.wav`), r.data);
   const mulut = amplopWav(r.data, spec.fps);
   return { file: `suara/${a.id}.wav`, durasi: r.durasi, mulut, kata: kataDariAmplop(a.narasi, mulut, spec.fps) };
@@ -374,7 +397,7 @@ export async function buatSuara(job: Job, dir: string) {
   const karakter = spec.adegan.reduce((s, a) => s + a.narasi.replace(/\*/g, '').length, 0);
   await lapor(job.id, { tahap: 'suara', status: 'mulai', log: `Membuat suara untuk ${spec.adegan.length} baris (${karakter} karakter)` });
 
-  const adaKey = (['edge', 'azure', 'elevenlabs', 'gemini'] as Penyedia[]).some(siap);
+  const adaKey = (['edge', 'azure', 'elevenlabs', 'gemini', 'voicestudio'] as Penyedia[]).some(siap);
   if (!adaKey) {
     for (const a of spec.adegan) {
       const kata = a.narasi.split(/\s+/).filter(Boolean).length;
