@@ -74,6 +74,10 @@ curl -s http://127.0.0.1:3900/v1/audio/voices
   `Suara gagal (..., voicestudio)` lalu `pindah ke Edge ...`.
 - Suara VoiceStudio menghasilkan WAV (24 kHz mono) — gerak mulut & kata karaoke
   dihitung dari amplop audio, sama seperti Azure/Gemini.
+- **Kecepatan**: sintesis di VM 4 vCPU lambat — diukur 2026-11-11, klip ~3 dtk
+  butuh ~33 dtk, jadi 12 adegan bisa makan 7–12 menit (Edge cuma ~1 menit).
+  Itu harga suara kloning di hardware ini; timeout TTS disetel 120 dtk per
+  adegan supaya tidak kepotong di tengah jalan.
 
 ## Alternatif: Tailscale
 

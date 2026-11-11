@@ -3,8 +3,12 @@
 // jaringan lokal: terowongan SSH atau Tailscale dari VM studio ke VM VoiceStudio,
 // sehingga dari studio alamatnya terlihat lokal (mis. http://127.0.0.1:3900).
 // Kalau VM VoiceStudio mati / terowongan putus, pipeline otomatis pindah ke Edge
-// (rantai cadangan di cli/tts.ts) — ttsVoiceStudio di bawah gagal cepat supaya
-// pindahnya tidak menunggu lama.
+// (rantai cadangan di cli/tts.ts).
+// CATATAN KECEPATAN (diukur 2026-11-11): sintesis di VM 4 vCPU lambat — klip ~3 dtk
+// butuh ~33 dtk, adegan ~7 dtk bisa ~60-70 dtk. Jadi timeout sengaja longgar
+// (120 dtk); kalau terowongan benar-benar mati, koneksi langsung ditolak
+// (gagal cepat) dan baru pindah ke Edge — timeout panjang hanya terasa bila
+// server menerima tapi tidak menjawab.
 const dasar = () => (process.env.VOICESTUDIO_URL || '').replace(/\/$/, '');
 const kunci = () => process.env.VOICESTUDIO_API_KEY || '';
 export const voicestudioSiap = () => !!dasar() && !!kunci();
@@ -58,7 +62,7 @@ function durasiWav(buf: Buffer): number {
   return dataLen / 2 / rate;
 }
 
-/** TTS → WAV PCM mono. Gagal cepat (maks 2 percobaan × 15 dtk) supaya rantai cadangan segera pindah ke Edge. */
+/** TTS → WAV PCM mono. Timeout 120 dtk per percobaan (sintesis CPU lambat, lihat atas); maks 2 percobaan. */
 export async function ttsVoiceStudio(teks: string, suara: string) {
   const url = `${dasar()}/v1/audio/speech`;
   for (let coba = 0; coba < 2; coba++) {
@@ -72,7 +76,7 @@ export async function ttsVoiceStudio(teks: string, suara: string) {
           input: teks,
           response_format: 'wav',
         }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(120_000),
       });
       if (r.status === 429 || r.status >= 500) {
         if (coba === 0) {
